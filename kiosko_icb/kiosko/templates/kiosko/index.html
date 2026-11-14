@@ -1,5 +1,232 @@
 {% extends "kiosko/base.html" %}
-{% block title %}Bienvenido{% endblock title %}
+{% load static kiosko_tags %}
+{% block title %}Pide algo rico{% endblock title %}
 {% block content %}
-    <h1>Bienvenido al Kiosko ICB</h1>
-{% endblock %}
+    <div class="page-shell">
+        <header class="site-header">
+            <a class="brand" href="{% url 'index' %}" aria-label="Kiosko ICB, inicio">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 32 32" fill="none">
+                        <path d="M7 12h16v9a5 5 0 0 1-5 5h-6a5 5 0 0 1-5-5v-9Z" fill="currentColor"/>
+                        <path d="M23 15h2a3 3 0 1 1 0 6h-2M11 7c0-1.5 2-1.5 2-3m4 3c0-1.5 2-1.5 2-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </span>
+                <span class="brand-copy"><strong>kiosko</strong><span>ICB · campus</span></span>
+            </a>
+            <div class="header-note"><span class="open-dot"></span> Hecho para tu pausa</div>
+            <button class="header-cart js-open-cart" type="button" aria-label="Abrir mi pedido">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.1a2 2 0 0 0 2 1.6h8.7a2 2 0 0 0 1.9-1.4L22 8H6M10 21h.01M18 21h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Mi pedido</span><span class="header-cart-count" id="header-cart-count">0</span>
+            </button>
+        </header>
+
+        <main>
+            <section class="welcome-hero" aria-labelledby="welcome-title">
+                <div class="hero-copy">
+                    <p class="eyebrow"><span class="eyebrow-mark">ICB</span> Tu pausa, a tu manera</p>
+                    <h1 id="welcome-title">¡Hola! ¿Qué se te antoja <span>hoy?</span></h1>
+                    <p class="hero-description">Disfruta algo rico y continúa con tu día.</p>
+                    <a class="button button-primary hero-cta" href="#catalogo">
+                        Comenzar mi pedido
+                        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </a>
+                    <div class="hero-footnote"><span class="sparkle">✦</span> Elige, pide y vuelve a lo tuyo</div>
+                </div>
+                <div class="hero-art">
+                    {% if hero_product %}
+                        {% if hero_product.imagen %}
+                            <img class="hero-food" src="{{ hero_product.imagen.url }}" alt="{{ hero_product.nombre }}" fetchpriority="high">
+                        {% elif hero_product.categoria.imagen %}
+                            <img class="hero-food" src="{{ hero_product.categoria.imagen.url }}" alt="{{ hero_product.nombre }}" fetchpriority="high">
+                        {% endif %}
+                        <div class="hero-product-tag"><span>Una pausa</span><strong>{{ hero_product.nombre }}</strong></div>
+                    {% endif %}
+                    <span class="hero-sticker" aria-hidden="true">rico<br>y listo</span>
+                    <span class="hero-scribble" aria-hidden="true">✳</span>
+                </div>
+            </section>
+
+            <section class="quick-picks" aria-label="Para disfrutar hoy">
+                <div class="section-heading compact-heading">
+                    <div><p class="eyebrow">Un buen comienzo</p><h2>Para disfrutar hoy</h2></div>
+                    <a href="#catalogo" class="text-link">Ver todo <span aria-hidden="true">→</span></a>
+                </div>
+                <div class="featured-row">
+                    {% for product in featured_products %}
+                        <article class="featured-card">
+                            <button class="featured-image js-product-detail" type="button" data-product-id="{{ product.id }}" aria-label="Ver {{ product.nombre }}">
+                                {% if product.imagen %}
+                                    <img src="{{ product.imagen.url }}" alt="" loading="lazy">
+                                {% elif product.categoria.imagen %}
+                                    <img src="{{ product.categoria.imagen.url }}" alt="" loading="lazy">
+                                {% else %}
+                                    <span class="image-fallback" aria-hidden="true">ICB</span>
+                                {% endif %}
+                            </button>
+                            <div class="featured-info">
+                                <span class="featured-category">{{ product.categoria.nombre }}</span>
+                                <h3>{{ product.nombre }}</h3>
+                                <div class="featured-bottom">
+                                    <strong>{{ product.precio|clp }}</strong>
+                                    <button class="add-icon js-add-product" type="button" data-product-id="{{ product.id }}" aria-label="Agregar {{ product.nombre }} al pedido">+</button>
+                                </div>
+                            </div>
+                        </article>
+                    {% empty %}
+                        <p class="empty-catalog">Pronto tendremos algo rico para ti. Vuelve a visitarnos.</p>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="catalog-section" id="catalogo" aria-labelledby="catalog-title">
+                <div class="section-heading catalog-heading">
+                    <div><p class="eyebrow">Encuentra tu favorito</p><h2 id="catalog-title">¿Qué se te antoja?</h2></div>
+                    <label class="search-box">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                        <input id="product-search" type="search" placeholder="Buscar algo rico" aria-label="Buscar productos">
+                    </label>
+                </div>
+
+                <nav class="category-nav" aria-label="Categorías de productos" id="category-nav">
+                    <button class="category-pill is-active" type="button" data-category-filter="all">Todo</button>
+                    {% for category in categories %}
+                        <button class="category-pill" type="button" data-category-filter="{{ category.id }}">{{ category.nombre }}</button>
+                    {% endfor %}
+                </nav>
+
+                <div class="product-list">
+                    {% for category in categories %}
+                        <section class="category-section" data-category-section="{{ category.id }}" aria-labelledby="category-title-{{ category.id }}">
+                            <div class="category-title-row">
+                                <div><h3 id="category-title-{{ category.id }}">{{ category.nombre }}</h3>{% if category.descripcion %}<p>{{ category.descripcion }}</p>{% endif %}</div>
+                                <span class="category-count">{{ category.productos_catalogo|length }} opciones</span>
+                            </div>
+                            <div class="product-grid">
+                                {% for product in category.productos_catalogo %}
+                                    <article class="product-card" data-product-card data-product-id="{{ product.id }}" data-category="{{ category.id }}" data-name="{{ product.nombre|lower }}" data-description="{{ product.descripcion|default:'' }}" data-price="{{ product.precio|floatformat:0 }}" data-stock="{{ product.stock }}" data-image="{% if product.imagen %}{{ product.imagen.url }}{% elif category.imagen %}{{ category.imagen.url }}{% endif %}" data-category-name="{{ category.nombre }}">
+                                        <button class="product-photo js-product-detail" type="button" data-product-id="{{ product.id }}" aria-label="Ver detalles de {{ product.nombre }}">
+                                            {% if product.imagen %}
+                                                <img src="{{ product.imagen.url }}" alt="" loading="lazy">
+                                            {% elif category.imagen %}
+                                                <img src="{{ category.imagen.url }}" alt="" loading="lazy">
+                                            {% else %}
+                                                <span class="image-fallback" aria-hidden="true">ICB</span>
+                                            {% endif %}
+                                            {% if not product.stock %}<span class="sold-out-tag">Agotado</span>{% endif %}
+                                        </button>
+                                        <div class="product-info">
+                                            <span class="product-category">{{ category.nombre }}</span>
+                                            <h4>{{ product.nombre }}</h4>
+                                            {% if product.descripcion %}<p>{{ product.descripcion }}</p>{% else %}<p>Una opción rica para seguir con tu día.</p>{% endif %}
+                                            <div class="product-card-bottom">
+                                                <strong>{{ product.precio|clp }}</strong>
+                                                <button class="add-button js-add-product" type="button" data-product-id="{{ product.id }}" {% if not product.stock %}disabled aria-label="{{ product.nombre }} agotado"{% else %}aria-label="Agregar {{ product.nombre }} al pedido"{% endif %}>
+                                                    <span aria-hidden="true">+</span><span class="add-label">Agregar</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </article>
+                                {% empty %}
+                                    <p class="empty-catalog">No hay productos en esta categoría por ahora.</p>
+                                {% endfor %}
+                            </div>
+                        </section>
+                    {% empty %}
+                        <div class="catalog-empty-state"><span aria-hidden="true">☕</span><h3>Estamos preparando el menú</h3><p>Vuelve pronto para descubrir algo rico.</p></div>
+                    {% endfor %}
+                </div>
+            </section>
+        </main>
+
+        <footer class="site-footer"><span class="footer-brand">kiosko <b>ICB</b></span><span>Una pausa rica en tu campus.</span></footer>
+    </div>
+
+    <button class="mobile-cart-bar js-open-cart" id="mobile-cart-bar" type="button" aria-label="Ver mi pedido">
+        <span class="mobile-cart-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3 4h2l2.2 11.1a2 2 0 0 0 2 1.6h8.7a2 2 0 0 0 1.9-1.4L22 8H6M10 21h.01M18 21h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="mobile-cart-count">0</span>
+        </span>
+        <span>Ver mi pedido</span><strong id="mobile-cart-total">$0</strong>
+    </button>
+
+    <dialog class="app-dialog detail-dialog" id="product-dialog" aria-labelledby="detail-name">
+        <button class="dialog-close" type="button" data-close-dialog aria-label="Cerrar">×</button>
+        <div class="detail-layout">
+            <div class="detail-photo" id="detail-photo"></div>
+            <div class="detail-copy">
+                <span class="product-category" id="detail-category"></span>
+                <h2 id="detail-name"></h2>
+                <p id="detail-description"></p>
+                <div class="detail-stock" id="detail-stock"></div>
+                <strong class="detail-price" id="detail-price"></strong>
+                <div class="detail-actions">
+                    <div class="quantity-control" aria-label="Cantidad">
+                        <button type="button" id="detail-minus" aria-label="Disminuir cantidad">−</button>
+                        <span id="detail-quantity">1</span>
+                        <button type="button" id="detail-plus" aria-label="Aumentar cantidad">+</button>
+                    </div>
+                    <button class="button button-primary" type="button" id="detail-add">Agregar al pedido</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog class="app-dialog cart-dialog" id="cart-dialog" aria-labelledby="cart-title">
+        <div class="cart-header">
+            <div><p class="eyebrow">Tu pausa está cerca</p><h2 id="cart-title">Mi pedido <span id="cart-title-count"></span></h2></div>
+            <button class="dialog-close inline-close" type="button" data-close-dialog aria-label="Cerrar">×</button>
+        </div>
+        <section id="cart-view" class="cart-view">
+            <div id="cart-items" class="cart-items"></div>
+            <div class="cart-empty" id="cart-empty" hidden><span aria-hidden="true">🛍️</span><h3>Tu pedido está esperando</h3><p>Agrega algo rico y aquí lo tendrás a mano.</p><button class="button button-secondary" type="button" data-close-dialog>Seguir mirando</button></div>
+            <div class="cart-summary" id="cart-summary">
+                <div><span>Subtotal</span><strong id="cart-subtotal">$0</strong></div>
+                <div class="cart-total"><span>Total</span><strong id="cart-total">$0</strong></div>
+                <button class="button button-primary checkout-button" id="start-checkout" type="button">Continuar con mi pedido <span aria-hidden="true">→</span></button>
+                <p class="cart-note">El pago queda pendiente hasta ser recibido y verificado.</p>
+            </div>
+        </section>
+
+        <section id="checkout-view" class="checkout-view" hidden>
+            <button class="back-link" type="button" id="back-to-cart"><span aria-hidden="true">←</span> Volver al pedido</button>
+            <h3>Antes de confirmar</h3>
+            <p class="checkout-intro">Revisa tu pedido y elige cómo pagar. El pago se confirmará al ser recibido.</p>
+            <div class="checkout-review" id="checkout-review"></div>
+            <div class="checkout-total"><span>Total a pagar</span><strong id="checkout-total">$0</strong></div>
+            <form id="checkout-form" action="{% url 'crear_pedido' %}" method="post">
+                {% csrf_token %}
+                <label class="field-label" for="customer-name">¿A nombre de quién? <span>Opcional</span></label>
+                <input class="text-field" id="customer-name" name="cliente" type="text" maxlength="100" autocomplete="name" placeholder="Tu nombre">
+                <fieldset class="payment-fieldset">
+                    <legend>¿Cómo prefieres pagar?</legend>
+                    <p>Seleccionar un medio no significa que el pago ya esté realizado.</p>
+                    <div class="payment-options">
+                        {% for method in payment_methods %}
+                            <label class="payment-option">
+                                <input type="radio" name="medio_pago_id" value="{{ method.id }}" required>
+                                <span class="payment-radio" aria-hidden="true"></span>
+                                <span class="payment-option-copy"><strong>{{ method.nombre }}</strong><small>{% if method.tipo == "EF" %}En el punto de atención{% elif method.tipo == "TC" %}En el punto de atención{% else %}Pendiente de verificación{% endif %}</small></span>
+                                <span class="payment-option-icon" aria-hidden="true">
+                                    {% if method.tipo == "EF" %}◎{% elif method.tipo == "TC" %}▭{% else %}↗{% endif %}
+                                </span>
+                            </label>
+                        {% empty %}
+                            <p class="payment-unavailable">No hay medios de pago disponibles en este momento.</p>
+                        {% endfor %}
+                    </div>
+                </fieldset>
+                <p class="form-error" id="checkout-error" role="alert" hidden></p>
+                <button class="button button-primary confirm-button" type="submit" {% if not payment_methods %}disabled{% endif %}>
+                    Confirmar pedido <span aria-hidden="true">→</span>
+                </button>
+                <p class="secure-note"><span aria-hidden="true">✓</span> Tu pedido se confirma ahora; el pago se registra por separado.</p>
+            </form>
+        </section>
+    </dialog>
+
+    <dialog class="app-dialog toast-dialog" id="toast-dialog" aria-live="polite">
+        <p id="toast-message"></p>
+    </dialog>
+
+    {{ product_data|json_script:"product-data" }}
+{% endblock content %}

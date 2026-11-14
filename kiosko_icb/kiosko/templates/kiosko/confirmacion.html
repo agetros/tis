@@ -1,0 +1,65 @@
+{% extends "kiosko/base.html" %}
+{% load kiosko_tags %}
+{% block title %}Pedido registrado{% endblock title %}
+{% block content %}
+    <main class="confirmation-page">
+        <a class="brand confirmation-brand" href="{% url 'index' %}" aria-label="Kiosko ICB, inicio">
+            <span class="brand-mark" aria-hidden="true">✦</span>
+            <span class="brand-copy"><strong>kiosko</strong><span>ICB · campus</span></span>
+        </a>
+        <section class="confirmation-card" aria-labelledby="confirmation-title">
+            <div class="success-badge" aria-hidden="true">
+                <svg viewBox="0 0 48 48"><path d="m13 24 7 7 15-16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <p class="eyebrow">Listo, ya lo recibimos</p>
+            <h1 id="confirmation-title">¡Tu pedido está registrado!</h1>
+            <p class="confirmation-intro">Tu número de pedido ya está listo. Tenlo a mano para coordinar el pago y el retiro.</p>
+            <div class="order-number">
+                <span>Número de pedido</span>
+                <strong>{{ pedido.numero_pedido }}</strong>
+            </div>
+
+            <div class="confirmation-statuses">
+                <div class="status-card">
+                    <span class="status-icon" aria-hidden="true">◷</span>
+                    <span><small>Estado del pedido</small><strong>{% if pedido.estado == "E" %}En preparación{% elif pedido.estado == "C" %}Completado{% elif pedido.estado == "A" %}Anulado{% else %}Pendiente de preparación{% endif %}</strong></span>
+                </div>
+                <div class="status-card">
+                    <span class="status-icon" aria-hidden="true">$</span>
+                    <span><small>Estado del pago</small><strong>{% if pedido.estado_pago == "G" %}Pago confirmado{% elif pedido.estado_pago == "A" %}Pago rechazado o anulado{% elif pedido.medio_pago and pedido.medio_pago.tipo == "TR" %}Pendiente de verificación{% else %}Pago pendiente{% endif %}</strong></span>
+                </div>
+            </div>
+
+            <div class="confirmation-items">
+                <h2>Tu pedido</h2>
+                {% for detalle in detalles %}
+                    <div class="confirmation-line">
+                        <span><b>{{ detalle.cantidad }}×</b> {{ detalle.producto.nombre }}</span>
+                        <strong>{{ detalle.subtotal|clp }}</strong>
+                    </div>
+                {% endfor %}
+                <div class="confirmation-total"><span>Total</span><strong>{{ pedido.total|clp }}</strong></div>
+            </div>
+
+            <div class="pickup-note">
+                <span class="pickup-icon" aria-hidden="true">⌖</span>
+                <div>
+                    <strong>¿Qué sigue?</strong>
+                    {% if pedido.medio_pago and pedido.medio_pago.tipo == "EF" %}
+                        <p>Acércate al punto de atención para pagar en efectivo. Tu pago quedará confirmado cuando lo reciba el personal.</p>
+                    {% elif pedido.medio_pago and pedido.medio_pago.tipo == "TC" %}
+                        <p>Paga con tu tarjeta en el punto de atención. El pago se confirmará cuando sea recibido por el personal.</p>
+                    {% elif pedido.medio_pago and pedido.medio_pago.tipo == "TR" %}
+                        <p>Solicita al personal las indicaciones para transferir. El pago quedará pendiente hasta ser verificado.</p>
+                    {% else %}
+                        <p>Acércate al punto de atención para coordinar el pago y retirar tu pedido. El pago se confirmará cuando sea recibido.</p>
+                    {% endif %}
+                    <p class="pickup-reminder">Ten a mano tu número de pedido: <b>{{ pedido.numero_pedido }}</b>.</p>
+                </div>
+            </div>
+            <a class="button button-primary confirmation-button" href="{% url 'index' %}">Volver al menú <span aria-hidden="true">→</span></a>
+        </section>
+        <p class="confirmation-footer">Kiosko ICB <span>·</span> Una pausa rica en tu campus.</p>
+    </main>
+{% endblock content %}
+{% block scripts %}{% endblock scripts %}
