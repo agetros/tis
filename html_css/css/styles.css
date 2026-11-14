@@ -1,0 +1,129 @@
+      /* Variables globales para reutilizar colores y mantener una paleta consistente. */
+      :root {
+        --brand-primary: #0d6efd;
+        --brand-dark: #0f172a;
+        --bg-light: #f8fafc;
+      }
+
+      /* Estilos base del documento; Bootstrap aporta el resto de componentes visuales. */
+      body {
+        background-color: var(--bg-light);
+        color: #334155;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+      }
+
+      /* Portada: el degradado crea contraste y el borde inferior destaca el color principal. */
+      .hero-section {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        color: #ffffff;
+        padding: 4rem 0;
+        border-bottom: 4px solid var(--brand-primary);
+      }
+
+      /* Tarjetas de resumen: sombra y transición para dar profundidad al pasar el cursor. */
+      .stat-card {
+        border: none;
+        border-radius: 0.75rem;
+        box-shadow:
+          0 4px 6px -1px rgba(0, 0, 0, 0.05),
+          0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+
+      .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      }
+
+      /* El tamaño fijo del icono mantiene alineados los indicadores de cada tarjeta. */
+      .stat-icon {
+        font-size: 2rem;
+        width: 3rem;
+        height: 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.5rem;
+      }
+
+      /* Contenedor visual de la tabla; table-responsive de Bootstrap gestiona el desborde móvil. */
+      .table-custom {
+        background-color: #ffffff;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      /* La ilustración se compone con CSS: flex centra el icono y el texto sin una imagen externa. */
+      .css-illustration {
+        background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+        border-radius: 0.75rem;
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #3730a3;
+      }
+
+      .css-illustration-icon {
+        font-size: 3.5rem;
+        line-height: 1;
+      }
+
+      /* Superficie blanca que agrupa visualmente los campos del formulario. */
+      .form-section {
+        background-color: #ffffff;
+        border-radius: 0.75rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      /* details y summary son elementos HTML nativos para mostrar u ocultar contenido. */
+      details summary {
+        cursor: pointer;
+        font-weight: 600;
+        padding: 1rem;
+        background-color: #ffffff;
+        border-radius: 0.5rem;
+        border: 1px solid #e2e8f0;
+      }
+
+      details[open] summary {
+        /* El selector [open] solo aplica cuando el usuario despliega el elemento details. */
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        background-color: #f1f5f9;
+      }
+
+      details .details-content {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-top: none;
+        border-bottom-left-radius: 0.5rem;
+        border-bottom-right-radius: 0.5rem;
+        padding: 1.25rem;
+      }
+
+      /* Pie de página: usa el color oscuro definido en las variables globales. */
+      footer {
+        background-color: var(--brand-dark);
+        color: #94a3b8;
+      }
+
+      footer a {
+        color: #38bdf8;
+        text-decoration: none;
+      }
+
+      footer a:hover {
+        text-decoration: underline;
+      }

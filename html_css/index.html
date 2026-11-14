@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Ejemplo educativo de una página para gestionar recursos académicos."
+    />
+    <title>Gestor de recursos académicos</title>
+
+    <!-- Bootstrap 5 CSS CDN -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+
+    <!-- Bootstrap Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+
+  <body>
+    <!-- sticky-top fija la navegación al desplazarse; navbar-expand-lg la adapta a móviles. -->
+    <header class="sticky-top">
+      <nav
+        class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm"
+        aria-label="Navegación principal"
+      >
+        <div class="container">
+          <a
+            class="navbar-brand d-flex align-items-center gap-2 fw-bold"
+            href="#inicio"
+          >
+            <span class="badge bg-primary rounded-circle" aria-hidden="true"
+              >R</span
+            >
+            Recursos académicos
+          </a>
+
+          <button
+            class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#navbarContenido"
+            aria-controls="navbarContenido"
+            aria-expanded="false"
+            aria-label="Mostrar u ocultar navegación"
+          >
+            <!-- Bootstrap usa estos atributos para abrir y cerrar el menú en pantallas pequeñas. -->
+            <span class="navbar-toggler-icon"></span>
+          </button>
+
+          <div class="collapse navbar-collapse" id="navbarContenido">
+            <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+              <li class="nav-item">
+                <a class="nav-link" href="#resumen">Resumen</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#recursos">Recursos</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#nuevo-recurso">Registrar recurso</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#condiciones">Préstamos</a>
+              </li>
+              <li class="nav-item">
+                <a
+                  class="btn btn-outline-light btn-sm ms-lg-2 mt-2 mt-lg-0"
+                  href="#nuevo-recurso"
+                  >Nuevo recurso</a
+                >
+              </li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main id="inicio">
+      <!-- aria-labelledby conecta cada sección con su título y mejora la navegación asistida. -->
+      <!-- Portada principal con accesos directos a las secciones mediante anclas. -->
+      <section class="hero-section" aria-labelledby="titulo-principal">
+        <div class="container">
+          <span
+            class="badge bg-primary-subtle text-primary-emphasis mb-2 px-3 py-2 rounded-pill"
+            >Panel de administración</span
+          >
+          <h1 id="titulo-principal" class="display-5 fw-bold text-white mb-3">
+            Gestor de recursos académicos
+          </h1>
+          <p class="lead text-light opacity-75 max-w-2xl mb-4">
+            Consulta la disponibilidad de equipos y materiales académicos,
+            revisa los préstamos y registra nuevos recursos desde un solo lugar.
+          </p>
+          <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-primary btn-lg" href="#recursos"
+              >Explorar recursos</a
+            >
+            <a class="btn btn-outline-light btn-lg" href="#nuevo-recurso"
+              >Registrar recurso</a
+            >
+          </div>
+        </div>
+      </section>
+
+      <div class="container my-5">
+        <!-- La cuadrícula row/col de Bootstrap distribuye los indicadores según el ancho disponible. -->
+        <section id="resumen" class="mb-5" aria-labelledby="titulo-resumen">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h2 id="titulo-resumen" class="h3 fw-bold mb-1">
+                Resumen general
+              </h2>
+              <p class="text-muted mb-0">
+                Una vista rápida del estado de los recursos registrados.
+              </p>
+            </div>
+            <span class="badge bg-secondary">Datos de ejemplo</span>
+          </div>
+
+          <div class="row g-4">
+            <div class="col-md-4">
+              <article class="card stat-card h-100 p-3">
+                <div
+                  class="card-body d-flex align-items-center justify-content-between"
+                >
+                  <div>
+                    <p class="text-muted small fw-medium mb-1">
+                      Recursos registrados
+                    </p>
+                    <p class="display-6 fw-bold mb-0">3</p>
+                  </div>
+                  <span
+                    class="stat-icon bg-primary-subtle text-primary"
+                    aria-hidden="true"
+                    >▤</span
+                  >
+                </div>
+                <div
+                  class="card-footer bg-transparent border-0 pt-0 text-muted small"
+                >
+                  Total de recursos en el ejemplo.
+                </div>
+              </article>
+            </div>
+            <div class="col-md-4">
+              <article class="card stat-card h-100 p-3">
+                <div
+                  class="card-body d-flex align-items-center justify-content-between"
+                >
+                  <div>
+                    <p class="text-muted small fw-medium mb-1">Disponibles</p>
+                    <p class="display-6 fw-bold mb-0 text-success">2</p>
+                  </div>
+                  <span
+                    class="stat-icon bg-success-subtle text-success"
+                    aria-hidden="true"
+                    >✓</span
+                  >
+                </div>
+                <div
+                  class="card-footer bg-transparent border-0 pt-0 text-muted small"
+                >
+                  Pueden solicitarse en préstamo.
+                </div>
+              </article>
+            </div>
+            <div class="col-md-4">
+              <article class="card stat-card h-100 p-3">
+                <div
+                  class="card-body d-flex align-items-center justify-content-between"
+                >
+                  <div>
+                    <p class="text-muted small fw-medium mb-1">En préstamo</p>
+                    <p class="display-6 fw-bold mb-0 text-warning">1</p>
+                  </div>
+                  <span
+                    class="stat-icon bg-warning-subtle text-warning"
+                    aria-hidden="true"
+                    >↗</span
+                  >
+                </div>
+                <div
+                  class="card-footer bg-transparent border-0 pt-0 text-muted small"
+                >
+                  Actualmente asignado a una persona.
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <!-- La tabla usa encabezados scope para asociar cada columna con sus datos. -->
+        <section
+          id="recursos"
+          class="mb-5 pt-3"
+          aria-labelledby="titulo-recursos"
+        >
+          <div class="mb-4">
+            <h2 id="titulo-recursos" class="h3 fw-bold mb-1">
+              Recursos registrados
+            </h2>
+            <p class="text-muted mb-0">
+              Listado de equipos y materiales disponibles en el sistema de
+              ejemplo.
+            </p>
+          </div>
+
+          <div class="card table-custom border-0">
+            <div
+              class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom"
+            >
+              <div>
+                <h3 class="h5 mb-0 fw-bold">Inventario académico</h3>
+                <p class="text-muted small mb-0">3 registros de muestra</p>
+              </div>
+              <a class="btn btn-sm btn-primary" href="#nuevo-recurso"
+                >+ Registrar recurso</a
+              >
+            </div>
+
+            <!-- Este contenedor permite desplazamiento horizontal cuando la tabla no cabe en móvil. -->
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <caption class="px-3 text-muted">
+                  Listado de recursos académicos de ejemplo.
+                </caption>
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Código</th>
+                    <th scope="col">Nombre</th>
+                    <th scope="col">Tipo</th>
+                    <th scope="col">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <span class="badge bg-light text-dark border"
+                        >REC-001</span
+                      >
+                    </td>
+                    <td class="fw-semibold">Notebook</td>
+                    <td>
+                      <span class="badge text-bg-info">Computacional</span>
+                    </td>
+                    <td>
+                      <span class="badge text-bg-success">Disponible</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="badge bg-light text-dark border"
+                        >REC-002</span
+                      >
+                    </td>
+                    <td class="fw-semibold">Proyector</td>
+                    <td>
+                      <span class="badge text-bg-secondary">Audiovisual</span>
+                    </td>
+                    <td>
+                      <span class="badge text-bg-warning">En préstamo</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="badge bg-light text-dark border"
+                        >REC-003</span
+                      >
+                    </td>
+                    <td class="fw-semibold">Cámara digital</td>
+                    <td>
+                      <span class="badge text-bg-secondary">Audiovisual</span>
+                    </td>
+                    <td>
+                      <span class="badge text-bg-success">Disponible</span>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot class="table-light">
+                  <tr>
+                    <td colspan="4" class="text-center text-muted small py-2">
+                      Los registros son ficticios y se utilizan únicamente con
+                      fines educativos.
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Los atributos required, minlength y maxlength activan validaciones del navegador. -->
+        <section
+          id="nuevo-recurso"
+          class="mb-5 pt-3"
+          aria-labelledby="titulo-formulario"
+        >
+          <div class="mb-4">
+            <h2 id="titulo-formulario" class="h3 fw-bold mb-1">
+              Registrar un recurso
+            </h2>
+            <p class="text-muted mb-0">
+              Completa los datos del recurso que deseas incorporar.
+            </p>
+          </div>
+
+          <div class="form-section p-4">
+            <div
+              class="alert alert-info d-flex align-items-center mb-4"
+              role="note"
+            >
+              <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+              <div>
+                <strong>Ejemplo estático:</strong> el formulario valida algunos
+                campos en el navegador, pero no guarda ni envía la información a
+                un servidor.
+              </div>
+            </div>
+
+            <!-- Cada label usa for con el id de su control para mejorar accesibilidad y selección. -->
+            <!-- action="#" y method="get" son solo demostrativos: aquí no se persisten datos. -->
+            <form action="#" method="get">
+              <!-- fieldset y legend agrupan controles relacionados semánticamente. -->
+              <fieldset class="border rounded-3 p-3 p-md-4 mb-4">
+                <legend
+                  class="float-none w-auto px-2 fs-6 fw-bold text-primary"
+                >
+                  Información general
+                </legend>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="nombre" class="form-label fw-medium"
+                      >Nombre del recurso
+                      <span class="text-danger">*</span></label
+                    >
+                    <input
+                      id="nombre"
+                      name="nombre"
+                      type="text"
+                      class="form-control"
+                      required
+                      minlength="2"
+                      maxlength="80"
+                      placeholder="Ej.: Notebook Lenovo"
+                    />
+                    <div class="form-text">
+                      Usa un nombre breve y fácil de reconocer.
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="codigo" class="form-label fw-medium"
+                      >Código interno</label
+                    >
+                    <input
+                      id="codigo"
+                      name="codigo"
+                      type="text"
+                      class="form-control"
+                      placeholder="Ej.: REC-004"
+                    />
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="tipo" class="form-label fw-medium"
+                      >Tipo de recurso <span class="text-danger">*</span></label
+                    >
+                    <select id="tipo" name="tipo" class="form-select" required>
+                      <option value="">Selecciona un tipo</option>
+                      <option value="computacional">
+                        Equipo computacional
+                      </option>
+                      <option value="audiovisual">Equipo audiovisual</option>
+                      <option value="laboratorio">
+                        Material de laboratorio
+                      </option>
+                      <option value="mobiliario">Mobiliario</option>
+                      <option value="otro">Otro</option>
+                    </select>
+                  </div>
+
+                  <div class="col-12">
+                    <label for="descripcion" class="form-label fw-medium"
+                      >Descripción</label
+                    >
+                    <textarea
+                      id="descripcion"
+                      name="descripcion"
+                      class="form-control"
+                      rows="3"
+                      maxlength="300"
+                      placeholder="Describe brevemente el recurso, sus características o accesorios."
+                    ></textarea>
+                    <div class="form-text">Máximo 300 caracteres.</div>
+                  </div>
+                </div>
+              </fieldset>
+
+              <fieldset class="border rounded-3 p-3 p-md-4 mb-4">
+                <legend
+                  class="float-none w-auto px-2 fs-6 fw-bold text-primary"
+                >
+                  Estado y disponibilidad
+                </legend>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <p class="form-label fw-medium mb-2">
+                      Estado inicial <span class="text-danger">*</span>
+                    </p>
+                    <div class="form-check">
+                      <input
+                        id="estado-disponible"
+                        type="radio"
+                        name="estado"
+                        value="disponible"
+                        class="form-check-input"
+                        required
+                      />
+                      <label for="estado-disponible" class="form-check-label"
+                        >Disponible</label
+                      >
+                    </div>
+                    <div class="form-check">
+                      <input
+                        id="estado-mantencion"
+                        type="radio"
+                        name="estado"
+                        value="mantencion"
+                        class="form-check-input"
+                      />
+                      <label for="estado-mantencion" class="form-check-label"
+                        >En mantenimiento</label
+                      >
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="fecha" class="form-label fw-medium"
+                      >Fecha de incorporación</label
+                    >
+                    <input
+                      id="fecha"
+                      name="fecha"
+                      type="date"
+                      class="form-control"
+                    />
+                  </div>
+
+                  <div class="col-12">
+                    <div class="form-check">
+                      <input
+                        id="requiere-autorizacion"
+                        type="checkbox"
+                        name="requiere_autorizacion"
+                        value="si"
+                        class="form-check-input"
+                      />
+                      <label
+                        for="requiere-autorizacion"
+                        class="form-check-label"
+                      >
+                        Requiere autorización especial para su préstamo
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </fieldset>
+
+              <div class="d-flex justify-content-end gap-2">
+                <button type="reset" class="btn btn-outline-secondary">
+                  Limpiar formulario
+                </button>
+                <button type="submit" class="btn btn-primary">
+                  Revisar datos
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- details permite desplegar las condiciones sin escribir JavaScript adicional. -->
+        <section
+          id="condiciones"
+          class="mb-5 pt-3"
+          aria-labelledby="titulo-condiciones"
+        >
+          <div class="mb-4">
+            <h2 id="titulo-condiciones" class="h3 fw-bold mb-1">
+              Condiciones de préstamo
+            </h2>
+            <p class="text-muted mb-0">
+              Información básica que debe conocer quien solicita un recurso.
+            </p>
+          </div>
+
+          <details>
+            <summary class="shadow-sm">
+              Consultar las condiciones de préstamo
+            </summary>
+            <div class="details-content">
+              <ul class="mb-3">
+                <li class="mb-2">
+                  La solicitud debe indicar quién utilizará el recurso y para
+                  qué actividad académica.
+                </li>
+                <li class="mb-2">
+                  El recurso debe devolverse en la fecha acordada y en las
+                  condiciones en que fue entregado.
+                </li>
+                <li class="mb-2">
+                  Quien recibe el recurso debe informar oportunamente cualquier
+                  daño o problema detectado.
+                </li>
+                <li class="mb-2">
+                  La disponibilidad real debe confirmarse con la unidad
+                  responsable antes de retirar el equipo.
+                </li>
+              </ul>
+              <p class="text-muted small mb-0">
+                Estas condiciones son ilustrativas y no representan una política
+                institucional oficial.
+              </p>
+            </div>
+          </details>
+        </section>
+
+        <!-- figure y figcaption vinculan la ilustración hecha en CSS con su descripción. -->
+        <section class="mb-5 pt-3" aria-labelledby="titulo-complementaria">
+          <div class="mb-4">
+            <h2 id="titulo-complementaria" class="h3 fw-bold mb-1">
+              Información complementaria
+            </h2>
+            <p class="text-muted mb-0">
+              Detalles útiles para orientar el uso de los recursos.
+            </p>
+          </div>
+
+          <div class="row g-4 align-items-center">
+            <div class="col-md-5">
+              <figure class="m-0">
+                <div class="css-illustration p-4 text-center shadow-sm">
+                  <div class="css-illustration-icon mb-2" aria-hidden="true">
+                    ▣
+                  </div>
+                  <p class="fw-bold mb-0">Recursos para aprender</p>
+                </div>
+                <figcaption class="figure-caption text-center mt-2">
+                  Ilustración de ejemplo creada con HTML y CSS; no requiere un
+                  archivo de imagen externo.
+                </figcaption>
+              </figure>
+            </div>
+
+            <div class="col-md-7">
+              <article class="card border-0 shadow-sm p-4">
+                <h3 class="h5 fw-bold mb-3">Recomendaciones de uso</h3>
+                <ul class="mb-3">
+                  <li class="mb-2">
+                    Verifica el código y el estado del recurso antes de
+                    solicitarlo.
+                  </li>
+                  <li class="mb-2">
+                    Comprueba que estén incluidos los cables, cargadores y
+                    accesorios necesarios.
+                  </li>
+                  <li class="mb-2">
+                    Devuelve los equipos dentro del plazo acordado.
+                  </li>
+                </ul>
+                <hr class="my-3" />
+                <p class="text-muted small mb-0">
+                  Última actualización del contenido:
+                  <time datetime="2026-10-20">20 de octubre de 2026</time>.
+                </p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <!-- Preguntas frecuentes presentadas en columnas responsivas de Bootstrap. -->
+        <section class="mb-5 pt-3" aria-labelledby="titulo-preguntas">
+          <div class="mb-4">
+            <h2 id="titulo-preguntas" class="h3 fw-bold mb-1">
+              Preguntas frecuentes
+            </h2>
+            <p class="text-muted mb-0">
+              Respuestas breves sobre este prototipo.
+            </p>
+          </div>
+
+          <div class="row g-4">
+            <div class="col-md-6">
+              <article class="card h-100 border-0 shadow-sm p-3">
+                <div class="card-body">
+                  <h3 class="h6 fw-bold text-primary mb-2">
+                    ¿Puedo solicitar un recurso desde esta página?
+                  </h3>
+                  <p class="card-text text-muted mb-0">
+                    No todavía. Esta versión presenta la interfaz, pero no
+                    incluye una operación real de solicitud.
+                  </p>
+                </div>
+              </article>
+            </div>
+            <div class="col-md-6">
+              <article class="card h-100 border-0 shadow-sm p-3">
+                <div class="card-body">
+                  <h3 class="h6 fw-bold text-primary mb-2">
+                    ¿Los datos se guardan?
+                  </h3>
+                  <p class="card-text text-muted mb-0">
+                    No. Para guardar datos se necesitaría implementar la lógica
+                    correspondiente y conectarla con un servidor.
+                  </p>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="py-5 mt-auto">
+      <div class="container">
+        <div class="row gy-4 mb-4">
+          <div class="col-md-8">
+            <p class="h5 text-white fw-bold mb-1">
+              Gestor de recursos académicos
+            </p>
+            <p class="mb-0">
+              Prototipo educativo de HTML5, Bootstrap y CSS personalizado.
+            </p>
+          </div>
+          <div class="col-md-4 text-md-end">
+            <address class="mb-0 fst-normal">
+              Consultas de ejemplo:<br />
+              <a href="mailto:soporte@example.cl">soporte@example.cl</a>
+            </address>
+          </div>
+        </div>
+        <hr class="border-secondary my-4" />
+        <div class="text-center text-muted small">
+          <p class="mb-0">
+            Ejercicio académico; no corresponde a un sistema institucional
+            operativo.
+          </p>
+        </div>
+      </div>
+    </footer>
+
+    <!-- El bundle JavaScript de Bootstrap activa componentes interactivos como el menú adaptable. -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"
+    ></script>
+  </body>
+</html>
