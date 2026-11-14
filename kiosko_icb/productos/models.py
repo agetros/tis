@@ -1,8 +1,7 @@
-from django.db import models
 from django.core.exceptions import ValidationError
+from django.db import models
 
 
-# Create your models here.
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
@@ -27,12 +26,12 @@ class Producto(models.Model):
     def __str__(self):
         return self.nombre
 
-def actualizar_stock(self, cantidad):
-    if cantidad <= 0:
-        raise ValidationError("La cantidad debe ser positiva.")
+    def actualizar_stock(self, cantidad):
+        if cantidad <= 0:
+            raise ValidationError("La cantidad debe ser positiva.")
 
-    if self.stock < cantidad:
-        raise ValidationError("Stock insuficiente.")
+        if self.stock < cantidad:
+            raise ValidationError(f"Stock insuficiente para {self.nombre}.")
 
-    self.stock -= cantidad
-    self.save(update_fields=["stock", "actualizado_en"])
+        self.stock -= cantidad
+        self.save(update_fields=["stock", "actualizado_en"])
