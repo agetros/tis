@@ -11,5 +11,9 @@ class MedioPago(models.Model):
     tipo = models.CharField(max_length=2, choices=TIPOS_PAGO)
     nombre = models.CharField(max_length=100)
 
+    class Meta:
+        verbose_name = "Medio de Pago"
+        verbose_name_plural = "Medios de Pago"
+
     def __str__(self):
         return f"{self.nombre} ({self.get_tipo_display()})"
