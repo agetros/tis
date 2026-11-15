@@ -28,6 +28,9 @@ class AutoservicioTests(TestCase):
         self.assertContains(response, "Café americano")
         self.assertContains(response, "$1.250")
         self.assertContains(response, "Efectivo")
+        self.assertContains(response, "bootstrap@5.3.9")
+        self.assertContains(response, "row-cols-2 row-cols-sm-3 row-cols-lg-4")
+        self.assertContains(response, "modal-dialog-centered")
 
     def test_order_uses_server_price_and_keeps_payment_pending(self):
         response = self.client.post(

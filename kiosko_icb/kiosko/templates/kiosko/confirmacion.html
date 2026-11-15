@@ -2,12 +2,12 @@
 {% load kiosko_tags %}
 {% block title %}Pedido registrado{% endblock title %}
 {% block content %}
-    <main class="confirmation-page">
+    <main class="confirmation-page container-fluid">
         <a class="brand confirmation-brand" href="{% url 'index' %}" aria-label="Kiosko ICB, inicio">
             <span class="brand-mark" aria-hidden="true">✦</span>
             <span class="brand-copy"><strong>kiosko</strong><span>ICB · campus</span></span>
         </a>
-        <section class="confirmation-card" aria-labelledby="confirmation-title">
+        <section class="confirmation-card card" aria-labelledby="confirmation-title">
             <div class="success-badge" aria-hidden="true">
                 <svg viewBox="0 0 48 48"><path d="m13 24 7 7 15-16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
@@ -19,14 +19,18 @@
                 <strong>{{ pedido.numero_pedido }}</strong>
             </div>
 
-            <div class="confirmation-statuses">
-                <div class="status-card">
-                    <span class="status-icon" aria-hidden="true">◷</span>
-                    <span><small>Estado del pedido</small><strong>{% if pedido.estado == "E" %}En preparación{% elif pedido.estado == "C" %}Completado{% elif pedido.estado == "A" %}Anulado{% else %}Pendiente de preparación{% endif %}</strong></span>
+            <div class="confirmation-statuses row g-2">
+                <div class="col-12 col-sm-6">
+                    <div class="status-card card h-100">
+                        <span class="status-icon" aria-hidden="true">◷</span>
+                        <span><small>Estado del pedido</small><strong>{% if pedido.estado == "E" %}En preparación{% elif pedido.estado == "C" %}Completado{% elif pedido.estado == "A" %}Anulado{% else %}Pendiente de preparación{% endif %}</strong></span>
+                    </div>
                 </div>
-                <div class="status-card">
-                    <span class="status-icon" aria-hidden="true">$</span>
-                    <span><small>Estado del pago</small><strong>{% if pedido.estado_pago == "G" %}Pago confirmado{% elif pedido.estado_pago == "A" %}Pago rechazado o anulado{% elif pedido.medio_pago and pedido.medio_pago.tipo == "TR" %}Pendiente de verificación{% else %}Pago pendiente{% endif %}</strong></span>
+                <div class="col-12 col-sm-6">
+                    <div class="status-card card h-100">
+                        <span class="status-icon" aria-hidden="true">$</span>
+                        <span><small>Estado del pago</small><strong>{% if pedido.estado_pago == "G" %}Pago confirmado{% elif pedido.estado_pago == "A" %}Pago rechazado o anulado{% elif pedido.medio_pago and pedido.medio_pago.tipo == "TR" %}Pendiente de verificación{% else %}Pago pendiente{% endif %}</strong></span>
+                    </div>
                 </div>
             </div>
 
@@ -41,7 +45,7 @@
                 <div class="confirmation-total"><span>Total</span><strong>{{ pedido.total|clp }}</strong></div>
             </div>
 
-            <div class="pickup-note">
+            <div class="pickup-note alert alert-light mb-0">
                 <span class="pickup-icon" aria-hidden="true">⌖</span>
                 <div>
                     <strong>¿Qué sigue?</strong>
@@ -57,7 +61,7 @@
                     <p class="pickup-reminder">Ten a mano tu número de pedido: <b>{{ pedido.numero_pedido }}</b>.</p>
                 </div>
             </div>
-            <a class="button button-primary confirmation-button" href="{% url 'index' %}">Volver al menú <span aria-hidden="true">→</span></a>
+            <a class="button button-primary btn btn-primary confirmation-button" href="{% url 'index' %}">Volver al menú <span aria-hidden="true">→</span></a>
         </section>
         <p class="confirmation-footer">Kiosko ICB <span>·</span> Una pausa rica en tu campus.</p>
     </main>

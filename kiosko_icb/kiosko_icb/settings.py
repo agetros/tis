@@ -10,9 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
-from pathlib import Path
-from dotenv import load_dotenv
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -45,7 +46,7 @@ INSTALLED_APPS = [
     "finanzas",
     "pedidos",
     "productos",
-    "kiosko"
+    "kiosko",
 ]
 
 MIDDLEWARE = [
@@ -139,16 +140,26 @@ MAILERS = {
         "BACKEND": "django.core.mail.backends.console.EmailBackend",
     },
 }
-WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER")
+
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
+WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+WHATSAPP_API_VERSION = os.getenv("WHATSAPP_API_VERSION", "v27.0")
+WHATSAPP_RECEIVER = os.getenv("WHATSAPP_RECEIVER")
+WHATSAPP_TEMPLATE_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_LANGUAGE", "es")
+
+WHATSAPP_TEMPLATES = {
+    "pedido_nuevo": os.getenv("WHATSAPP_TEMPLATE_PEDIDO_NUEVO"),
+    "pago_confirmado": os.getenv("WHATSAPP_TEMPLATE_PAGO"),
+    "pedido_listo": os.getenv("WHATSAPP_TEMPLATE_LISTO"),
+    "pedido_anulado": os.getenv("WHATSAPP_TEMPLATE_ANULADO"),
+}
 
 UNFOLD = {
     "SITE_TITLE": "Kiosko ICB",
     "SITE_HEADER": "Kiosko ICB",
     "SITE_SUBHEADER": "Panel de administración",
-
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": True,
-
     "THEME": "light",
     "COLORS": {
         "primary": {

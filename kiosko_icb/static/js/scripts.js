@@ -12,9 +12,11 @@
     const checkoutError = document.getElementById("checkout-error");
     const toastDialog = document.getElementById("toast-dialog");
     const toastMessage = document.getElementById("toast-message");
+    const productModal = bootstrap.Modal.getOrCreateInstance(productDialog);
+    const cartModal = bootstrap.Modal.getOrCreateInstance(cartDialog);
+    const toast = bootstrap.Toast.getOrCreateInstance(toastDialog);
     let activeProduct = null;
     let detailQuantity = 1;
-    let toastTimer;
 
     function formatPrice(amount) {
         return `$${formatter.format(amount)}`;
@@ -22,9 +24,7 @@
 
     function showToast(message) {
         toastMessage.textContent = message;
-        if (!toastDialog.open) toastDialog.show();
-        window.clearTimeout(toastTimer);
-        toastTimer = window.setTimeout(() => toastDialog.close(), 2400);
+        toast.show();
     }
 
     function saveCart() {
@@ -135,7 +135,7 @@
             const lineTotal = document.createElement("strong");
             lineTotal.textContent = formatPrice(product.price * itemQuantity);
             const remove = document.createElement("button");
-            remove.className = "remove-item";
+            remove.className = "remove-item btn btn-link";
             remove.type = "button";
             remove.dataset.cartAction = "remove";
             remove.dataset.productId = id;
@@ -154,6 +154,7 @@
     function actionButton(label, action, id, accessibleLabel) {
         const button = document.createElement("button");
         button.type = "button";
+        button.className = "btn btn-outline-secondary";
         button.dataset.cartAction = action;
         button.dataset.productId = id;
         button.setAttribute("aria-label", accessibleLabel);
@@ -215,14 +216,22 @@
         document.getElementById("detail-plus").disabled = soldOut || remaining < 2;
         document.getElementById("detail-add").disabled = soldOut;
         document.getElementById("detail-add").textContent = soldOut ? "Agotado" : "Agregar al pedido";
-        productDialog.showModal();
+        showModal(productModal, productDialog);
     }
 
     function openCart() {
         cartView.hidden = false;
         checkoutView.hidden = true;
         renderCart();
-        cartDialog.showModal();
+        showModal(cartModal, cartDialog);
+    }
+
+    function showModal(instance, element) {
+        const returnFocus = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+        element.addEventListener("hidden.bs.modal", () => returnFocus?.focus(), { once: true });
+        instance.show(returnFocus);
     }
 
     function filterProducts(categoryId) {
@@ -230,7 +239,9 @@
             section.hidden = categoryId !== "all" && section.dataset.categorySection !== categoryId;
         }
         for (const pill of document.querySelectorAll("[data-category-filter]")) {
-            pill.classList.toggle("is-active", pill.dataset.categoryFilter === categoryId);
+            const isActive = pill.dataset.categoryFilter === categoryId;
+            pill.classList.toggle("is-active", isActive);
+            pill.classList.toggle("active", isActive);
         }
     }
 
@@ -255,12 +266,6 @@
 
         if (target.closest(".js-open-cart")) {
             openCart();
-            return;
-        }
-
-        const closeButton = target.closest("[data-close-dialog]");
-        if (closeButton) {
-            closeButton.closest("dialog")?.close();
             return;
         }
 
@@ -309,7 +314,7 @@
     document.getElementById("detail-add").addEventListener("click", () => {
         if (!activeProduct || activeProduct.stock < 1) return;
         if (!changeQuantity(String(activeProduct.id), detailQuantity)) return;
-        productDialog.close();
+        productModal.hide();
         showToast("Agregado a tu pedido.");
     });
 
@@ -355,12 +360,7 @@
         }
     });
 
-    for (const dialog of [productDialog, cartDialog]) {
-        dialog.addEventListener("click", (event) => {
-            if (event.target === dialog) dialog.close();
-        });
-    }
-    cartDialog.addEventListener("close", () => {
+    cartDialog.addEventListener("hidden.bs.modal", () => {
         cartView.hidden = false;
         checkoutView.hidden = true;
     });
