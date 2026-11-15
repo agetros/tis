@@ -93,6 +93,7 @@ def crear_pedido(request):
             items=items,
             medio_pago_id=medio_pago_id,
             cliente=request.POST.get("cliente", ""),
+            telefono_cliente=request.POST.get("telefono_cliente", ""),
         )
     except ValidationError as error:
         return JsonResponse({"error": error.messages[0]}, status=400)

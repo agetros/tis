@@ -208,6 +208,8 @@
                             {% csrf_token %}
                             <label class="field-label" for="customer-name">¿A nombre de quién? <span>Opcional</span></label>
                             <input class="text-field form-control" id="customer-name" name="cliente" type="text" maxlength="100" autocomplete="name" placeholder="Tu nombre">
+                            <label class="field-label mt-3" for="customer-phone">Número de teléfono <span>Opcional</span></label>
+                            <input class="text-field form-control" id="customer-phone" name="telefono_cliente" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" placeholder="+56 9 1234 5678">
                             <fieldset class="payment-fieldset">
                                 <legend>¿Cómo prefieres pagar?</legend>
                                 <p>Seleccionar un medio no significa que el pago ya esté realizado.</p>

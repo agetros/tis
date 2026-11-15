@@ -28,6 +28,7 @@ class AutoservicioTests(TestCase):
         self.assertContains(response, "Café americano")
         self.assertContains(response, "$1.250")
         self.assertContains(response, "Efectivo")
+        self.assertContains(response, 'name="telefono_cliente"')
         self.assertContains(response, "bootstrap@5.3.9")
         self.assertContains(response, "row-cols-2 row-cols-sm-3 row-cols-lg-4")
         self.assertContains(response, "modal-dialog-centered")
@@ -41,6 +42,7 @@ class AutoservicioTests(TestCase):
                 ),
                 "medio_pago_id": self.payment_method.pk,
                 "cliente": "  Alex  ",
+                "telefono_cliente": "+56 9 1234 5678",
             },
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
@@ -51,6 +53,7 @@ class AutoservicioTests(TestCase):
         self.assertEqual(pedido.numero_pedido, f"ICB-{pedido.pk:06d}")
         self.assertEqual(pedido.total, 2500)
         self.assertEqual(pedido.cliente, "Alex")
+        self.assertEqual(pedido.telefono_cliente, "+56 9 1234 5678")
         self.assertEqual(pedido.estado_pago, "P")
         self.assertEqual(detalle.precio_unitario, 1250)
         self.product.refresh_from_db()
