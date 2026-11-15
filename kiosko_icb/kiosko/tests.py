@@ -1,7 +1,7 @@
 import json
 from decimal import Decimal
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from finanzas.models import MedioPago
@@ -9,6 +9,7 @@ from pedidos.models import DetallePedido, Pedido
 from productos.models import Categoria, Producto
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class AutoservicioTests(TestCase):
     def setUp(self):
         self.category = Categoria.objects.create(nombre="Cafetería")
@@ -86,3 +87,29 @@ class AutoservicioTests(TestCase):
         response = self.client.get(reverse("pedido_confirmacion", args=[pedido.pk]))
 
         self.assertEqual(response.status_code, 404)
+
+    def test_checkout_persists_explicit_whatsapp_consent(self):
+        response = self.client.post(
+            reverse("crear_pedido"),
+            {
+                "items": json.dumps([{"product_id": self.product.pk, "quantity": 1}]),
+                "medio_pago_id": self.payment_method.pk,
+                "telefono_cliente": "+56 9 1234 5678",
+                "acepta_notificaciones_whatsapp": "on",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Pedido.objects.get().acepta_notificaciones_whatsapp)
+
+    def test_checkout_rejects_consent_without_valid_phone(self):
+        response = self.client.post(
+            reverse("crear_pedido"),
+            {
+                "items": json.dumps([{"product_id": self.product.pk, "quantity": 1}]),
+                "medio_pago_id": self.payment_method.pk,
+                "telefono_cliente": "123",
+                "acepta_notificaciones_whatsapp": "on",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Pedido.objects.exists())

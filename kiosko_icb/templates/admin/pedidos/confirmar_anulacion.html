@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>Se anularán los siguientes pedidos:</p>
+<ul>{% for pedido in queryset %}<li>{{ pedido }}</li>{% endfor %}</ul>
+<p>Los pedidos pagados solo se anularán si se confirmó su reembolso.</p>
+<form method="post">
+    {% csrf_token %}
+    {% for pedido in queryset %}<input type="hidden" name="{{ action_checkbox_name }}" value="{{ pedido.pk }}">{% endfor %}
+    <input type="hidden" name="action" value="accion_anular_pedido">
+    <input type="hidden" name="confirmar_anulacion" value="si">
+    <label><input type="checkbox" name="reembolso_confirmado"> Confirmo que los pedidos pagados seleccionados ya fueron reembolsados.</label>
+    <div><input type="submit" value="Confirmar anulación"></div>
+</form>
+{% endblock %}

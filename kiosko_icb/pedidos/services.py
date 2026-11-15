@@ -19,6 +19,12 @@ def _generar_numero_pedido(pedido):
     return pedido
 
 
+def _registrar_evento(pedido, notificar):
+    pedido.version_notificacion += 1
+    pedido.save(update_fields=["version_notificacion"])
+    notificar(pedido)
+
+
 def _validar_datos_cliente(
     cliente,
     telefono_cliente,
@@ -41,6 +47,11 @@ def _validar_datos_cliente(
 
     if acepta_notificaciones_whatsapp and not telefono_cliente.strip():
         raise ValidationError("Ingresa un teléfono para recibir notificaciones.")
+    if acepta_notificaciones_whatsapp:
+        try:
+            notificaciones.normalizar_telefono(telefono_cliente)
+        except ValueError as error:
+            raise ValidationError(str(error)) from error
 
 
 def _crear_detalles_pedido(pedido, items):
@@ -162,7 +173,7 @@ def crear_pedido_autoservicio(
     pedido.save(update_fields=["total", "actualizado_en"])
 
     # Evento 1: nuevo pedido.
-    notificaciones.notificar_pedido_nuevo(pedido)
+    _registrar_evento(pedido, notificaciones.notificar_pedido_nuevo)
 
     return pedido
 
@@ -212,7 +223,7 @@ def crear_pedido_encargado(
     pedido.save(update_fields=["total", "actualizado_en"])
 
     # Evento 1: nuevo pedido.
-    notificaciones.notificar_pedido_nuevo(pedido)
+    _registrar_evento(pedido, notificaciones.notificar_pedido_nuevo)
 
     return pedido
 
@@ -294,7 +305,7 @@ def marcar_como_pagado(pedido_id, medio_pago_id):
     )
 
     # Evento 2: pago confirmado.
-    notificaciones.notificar_pago_confirmado(pedido)
+    _registrar_evento(pedido, notificaciones.notificar_pago_confirmado)
 
     return pedido
 
@@ -315,7 +326,7 @@ def marcar_como_listo(pedido_id):
     pedido.save(update_fields=["estado", "actualizado_en"])
 
     # Evento 3: pedido listo.
-    notificaciones.notificar_pedido_listo(pedido)
+    _registrar_evento(pedido, notificaciones.notificar_pedido_listo)
 
     return pedido
 
@@ -394,6 +405,6 @@ def anular_pedido(
     )
 
     # Evento 4: pedido anulado.
-    notificaciones.notificar_pedido_anulado(pedido)
+    _registrar_evento(pedido, notificaciones.notificar_pedido_anulado)
 
     return pedido

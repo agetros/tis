@@ -28,9 +28,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "false").lower() in ("1", "true", "yes")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [host.strip() for host in os.getenv(
+    "ALLOWED_HOSTS", "localhost,127.0.0.1"
+).split(",") if host.strip()]
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = os.getenv(
+    "SECURE_SSL_REDIRECT", "false" if DEBUG else "true"
+).lower() in ("1", "true", "yes")
+if os.getenv("TRUST_PROXY_HTTPS_HEADER", "false").lower() in ("1", "true", "yes"):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
 # Application definition
@@ -141,17 +150,20 @@ MAILERS = {
     },
 }
 
-WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
-WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
-WHATSAPP_API_VERSION = os.getenv("WHATSAPP_API_VERSION", "v27.0")
-WHATSAPP_RECEIVER = os.getenv("WHATSAPP_RECEIVER")
-WHATSAPP_TEMPLATE_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_LANGUAGE", "es")
-
-WHATSAPP_TEMPLATES = {
-    "pedido_nuevo": os.getenv("WHATSAPP_TEMPLATE_PEDIDO_NUEVO"),
-    "pago_confirmado": os.getenv("WHATSAPP_TEMPLATE_PAGO"),
-    "pedido_listo": os.getenv("WHATSAPP_TEMPLATE_LISTO"),
-    "pedido_anulado": os.getenv("WHATSAPP_TEMPLATE_ANULADO"),
+TWILIO_ENABLED = os.getenv("TWILIO_ENABLED", "false").lower() in ("1", "true", "yes")
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_API_KEY_SID = os.getenv("TWILIO_API_KEY_SID", "")
+TWILIO_API_KEY_SECRET = os.getenv("TWILIO_API_KEY_SECRET", "")
+TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "")
+TWILIO_MESSAGING_SERVICE_SID = os.getenv("TWILIO_MESSAGING_SERVICE_SID", "")
+TWILIO_STATUS_CALLBACK_URL = os.getenv("TWILIO_STATUS_CALLBACK_URL", "")
+TWILIO_CONTENT_TEMPLATES = {
+    "nuevo_encargado": os.getenv("TWILIO_CONTENT_TEMPLATE_NUEVO_ENCARGADO", ""),
+    "pago_encargado": os.getenv("TWILIO_CONTENT_TEMPLATE_PAGO_ENCARGADO", ""),
+    "listo_cliente": os.getenv("TWILIO_CONTENT_TEMPLATE_LISTO_CLIENTE", ""),
+    "anulado_encargado": os.getenv("TWILIO_CONTENT_TEMPLATE_ANULADO_ENCARGADO", ""),
+    "anulado_cliente": os.getenv("TWILIO_CONTENT_TEMPLATE_ANULADO_CLIENTE", ""),
 }
 
 UNFOLD = {

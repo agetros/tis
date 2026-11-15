@@ -89,11 +89,15 @@ def crear_pedido(request):
         medio_pago_id = None
 
     try:
+        consentimiento = request.POST.get("acepta_notificaciones_whatsapp")
+        if consentimiento not in (None, "on"):
+            raise ValidationError("La autorización de WhatsApp no es válida.")
         pedido = crear_pedido_autoservicio(
             items=items,
             medio_pago_id=medio_pago_id,
             cliente=request.POST.get("cliente", ""),
             telefono_cliente=request.POST.get("telefono_cliente", ""),
+            acepta_notificaciones_whatsapp=consentimiento == "on",
         )
     except ValidationError as error:
         return JsonResponse({"error": error.messages[0]}, status=400)

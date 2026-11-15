@@ -1,29 +1,26 @@
 import logging
+import re
 
 from django.conf import settings
-from django.db import transaction
 
-from .integrations.whatsapp import enviar_template_whatsapp
-from .models import NotificacionWhatsApp
+from .models import EncargadoWhatsApp, NotificacionSalida
 
 logger = logging.getLogger(__name__)
 
 
 def normalizar_telefono(telefono):
-
-    telefono = "".join(
-        caracter for caracter in str(telefono or "") if caracter.isdigit()
-    )
-
-    # Formato chileno: agregar código de país
-    # cuando se ingresa un celular nacional de 9 dígitos.
-    if len(telefono) == 9 and telefono.startswith("9"):
-        telefono = "56" + telefono
-
-    if not 8 <= len(telefono) <= 15:
-        raise ValueError("Número telefónico inválido.")
-
-    return telefono
+    """Normaliza móviles chilenos explícitos, sin inferir otros países."""
+    telefono = str(telefono or "").strip()
+    if not re.fullmatch(r"\+?[0-9 ()-]+", telefono):
+        raise ValueError("Ingresa un número móvil chileno válido.")
+    numero = re.sub(r"[ ()-]", "", telefono)
+    if re.fullmatch(r"9[0-9]{8}", numero):
+        numero = "+56" + numero
+    elif re.fullmatch(r"569[0-9]{8}", numero):
+        numero = "+" + numero
+    elif not re.fullmatch(r"\+569[0-9]{8}", numero):
+        raise ValueError("Ingresa un número móvil chileno válido.")
+    return numero
 
 
 def formato_pesos(valor):
@@ -31,168 +28,79 @@ def formato_pesos(valor):
 
 
 def obtener_productos(pedido):
-
-    detalles = pedido.detalle.select_related("producto")
-
     return ", ".join(
-        f"{detalle.cantidad}x {detalle.producto.nombre}" for detalle in detalles
+        f"{detalle.cantidad}x {detalle.producto.nombre}"
+        for detalle in pedido.detalle.select_related("producto")
     )
 
 
-def enviar_notificacion(notificacion_id, parametros):
-
-    notificacion = NotificacionWhatsApp.objects.get(pk=notificacion_id)
-
-    if notificacion.estado == "E":
-        return
-
-    try:
-        resultado = enviar_template_whatsapp(
-            telefono=notificacion.telefono,
-            evento=notificacion.evento,
-            parametros=parametros,
-        )
-
-        mensaje = resultado.get("messages", [{}])[0]
-
-        notificacion.estado = "E"
-        notificacion.identificador_whatsapp = mensaje.get("id", "")
-        notificacion.error = ""
-
-    except Exception as error:
-
-        logger.exception(
-            "Error enviando notificación WhatsApp. Pedido: %s",
-            notificacion.pedido_id,
-        )
-
-        notificacion.estado = "F"
-        notificacion.error = str(error)[:2000]
-
-    notificacion.save(
-        update_fields=[
-            "estado",
-            "identificador_whatsapp",
-            "error",
-        ]
-    )
-
-
-def programar_notificacion(
-    pedido,
-    evento,
-    telefono,
-    parametros,
-):
-
-    if not telefono:
-        return
-
+def _registrar(pedido, evento, tipo, telefono, parametros, encargado=None):
     try:
         telefono = normalizar_telefono(telefono)
     except ValueError:
-        logger.warning(
-            "Teléfono inválido para pedido %s",
-            pedido.pk,
-        )
+        logger.warning("Destinatario inválido para pedido %s, evento %s", pedido.pk, evento)
         return
-
-    notificacion, creada = NotificacionWhatsApp.objects.get_or_create(
-        pedido=pedido,
-        evento=evento,
+    NotificacionSalida.objects.get_or_create(
+        clave_evento=f"pedido:{pedido.pk}:transicion:{pedido.version_notificacion}",
+        tipo_destinatario=tipo,
         telefono=telefono,
+        defaults={
+            "pedido": pedido,
+            "evento": evento,
+            "parametros": parametros,
+            "encargado": encargado,
+        },
     )
 
-    if not creada:
 
-        if notificacion.estado in ("P", "E"):
-            return
-
-        notificacion.estado = "P"
-        notificacion.error = ""
-
-        notificacion.save(update_fields=["estado", "error"])
-
-    transaction.on_commit(
-        lambda: enviar_notificacion(
-            notificacion.pk,
-            parametros,
+def _encargados(pedido, evento, parametros):
+    for encargado in EncargadoWhatsApp.objects.filter(autorizado=True):
+        _registrar(
+            pedido, evento, NotificacionSalida.Destinatario.ENCARGADO,
+            encargado.telefono, parametros, encargado,
         )
-    )
+
+
+def _cliente(pedido, evento, parametros):
+    if pedido.acepta_notificaciones_whatsapp:
+        _registrar(
+            pedido, evento, NotificacionSalida.Destinatario.CLIENTE,
+            pedido.telefono_cliente, parametros,
+        )
 
 
 def notificar_pedido_nuevo(pedido):
-
-    parametros = [
-        pedido.numero_pedido,
-        pedido.cliente or "Sin nombre",
-        obtener_productos(pedido),
-        formato_pesos(pedido.total),
-    ]
-
-    programar_notificacion(
-        pedido=pedido,
-        evento="N",
-        telefono=settings.WHATSAPP_RECEIVER,
-        parametros=parametros,
-    )
+    if not settings.TWILIO_ENABLED:
+        return
+    _encargados(pedido, "N", {
+        "1": pedido.numero_pedido,
+        "2": pedido.cliente or "Sin nombre",
+        "3": obtener_productos(pedido),
+        "4": formato_pesos(pedido.total),
+    })
 
 
 def notificar_pago_confirmado(pedido):
-
-    parametros = [
-        pedido.numero_pedido,
-        formato_pesos(pedido.total),
-        str(pedido.medio_pago),
-    ]
-
-    programar_notificacion(
-        pedido=pedido,
-        evento="P",
-        telefono=settings.WHATSAPP_RECEIVER,
-        parametros=parametros,
-    )
+    if not settings.TWILIO_ENABLED:
+        return
+    _encargados(pedido, "P", {
+        "1": pedido.numero_pedido,
+        "2": formato_pesos(pedido.total),
+        "3": str(pedido.medio_pago),
+    })
 
 
 def notificar_pedido_listo(pedido):
-
-    if not pedido.acepta_notificaciones_whatsapp:
-        return
-
-    parametros = [
-        pedido.cliente or "Cliente",
-        pedido.numero_pedido,
-    ]
-
-    programar_notificacion(
-        pedido=pedido,
-        evento="L",
-        telefono=pedido.telefono_cliente,
-        parametros=parametros,
-    )
+    if settings.TWILIO_ENABLED:
+        _cliente(pedido, "L", {
+            "1": pedido.cliente or "Cliente",
+            "2": pedido.numero_pedido,
+        })
 
 
 def notificar_pedido_anulado(pedido):
-
-    parametros = [
-        pedido.numero_pedido,
-        pedido.cliente or "Sin nombre",
-    ]
-
-    # Notificación al encargado.
-    programar_notificacion(
-        pedido=pedido,
-        evento="A",
-        telefono=settings.WHATSAPP_RECEIVER,
-        parametros=parametros,
-    )
-
-    # Notificación al cliente con consentimiento.
-    if pedido.acepta_notificaciones_whatsapp:
-
-        programar_notificacion(
-            pedido=pedido,
-            evento="A",
-            telefono=pedido.telefono_cliente,
-            parametros=parametros,
-        )
+    if not settings.TWILIO_ENABLED:
+        return
+    parametros = {"1": pedido.numero_pedido, "2": pedido.cliente or "Sin nombre"}
+    _encargados(pedido, "A", parametros)
+    _cliente(pedido, "A", parametros)

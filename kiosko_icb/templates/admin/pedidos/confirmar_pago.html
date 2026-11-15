@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>Confirma el pago recibido de los siguientes pedidos. Se descontará el inventario y se registrará el ingreso:</p>
+<ul>{% for pedido in queryset %}<li>{{ pedido }} — {{ pedido.medio_pago|default:"Sin medio de pago" }}</li>{% endfor %}</ul>
+<form method="post">
+    {% csrf_token %}
+    {% for pedido in queryset %}<input type="hidden" name="{{ action_checkbox_name }}" value="{{ pedido.pk }}">{% endfor %}
+    <input type="hidden" name="action" value="accion_confirmar_pago">
+    <input type="hidden" name="confirmar_pago" value="si">
+    <input type="submit" value="Confirmar pago">
+</form>
+{% endblock %}
