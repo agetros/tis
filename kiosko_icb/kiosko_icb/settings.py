@@ -33,11 +33,13 @@ DEBUG = os.getenv("DEBUG", "false").lower() in ("1", "true", "yes")
 ALLOWED_HOSTS = [host.strip() for host in os.getenv(
     "ALLOWED_HOSTS", "localhost,127.0.0.1"
 ).split(",") if host.strip()]
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
-SECURE_SSL_REDIRECT = os.getenv(
-    "SECURE_SSL_REDIRECT", "false" if DEBUG else "true"
+SESSION_COOKIE_SECURE = os.getenv(
+    "SESSION_COOKIE_SECURE", "false"
 ).lower() in ("1", "true", "yes")
+CSRF_COOKIE_SECURE = os.getenv(
+    "CSRF_COOKIE_SECURE", "false"
+).lower() in ("1", "true", "yes")
+SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "false").lower() in ("1", "true", "yes")
 if os.getenv("TRUST_PROXY_HTTPS_HEADER", "false").lower() in ("1", "true", "yes"):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
@@ -157,6 +159,9 @@ TWILIO_API_KEY_SID = os.getenv("TWILIO_API_KEY_SID", "")
 TWILIO_API_KEY_SECRET = os.getenv("TWILIO_API_KEY_SECRET", "")
 TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "")
 TWILIO_MESSAGING_SERVICE_SID = os.getenv("TWILIO_MESSAGING_SERVICE_SID", "")
+TWILIO_STATUS_CALLBACK_ENABLED = os.getenv(
+    "TWILIO_STATUS_CALLBACK_ENABLED", "false"
+).lower() in ("1", "true", "yes")
 TWILIO_STATUS_CALLBACK_URL = os.getenv("TWILIO_STATUS_CALLBACK_URL", "")
 TWILIO_CONTENT_TEMPLATES = {
     "nuevo_encargado": os.getenv("TWILIO_CONTENT_TEMPLATE_NUEVO_ENCARGADO", ""),

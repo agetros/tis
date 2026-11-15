@@ -15,9 +15,16 @@ from .procesamiento import ORDEN_ESTADOS, actualizar_estado_proveedor
 @csrf_exempt
 @require_POST
 def twilio_status_callback(request):
+    if not settings.TWILIO_STATUS_CALLBACK_ENABLED:
+        return HttpResponse(status=404)
     base = settings.TWILIO_STATUS_CALLBACK_URL
-    parsed = urlsplit(base)
-    if not settings.TWILIO_AUTH_TOKEN or not base or parsed.query or parsed.fragment:
+    try:
+        parsed = urlsplit(base)
+        _ = parsed.port
+    except ValueError:
+        return HttpResponse(status=503)
+    if (not settings.TWILIO_AUTH_TOKEN or parsed.scheme != "https" or not parsed.hostname
+            or parsed.username or parsed.password or parsed.query or parsed.fragment):
         return HttpResponse(status=503)
     if request.path != parsed.path:
         return HttpResponse(status=403)

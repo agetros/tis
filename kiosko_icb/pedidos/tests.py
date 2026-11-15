@@ -41,6 +41,7 @@ CONFIG = {
     "TWILIO_API_KEY_SECRET": "",
     "TWILIO_WHATSAPP_FROM": "whatsapp:+56912345678",
     "TWILIO_MESSAGING_SERVICE_SID": "MG" + "4" * 32,
+    "TWILIO_STATUS_CALLBACK_ENABLED": True,
     "TWILIO_STATUS_CALLBACK_URL": CALLBACK,
     "TWILIO_CONTENT_TEMPLATES": {
         "nuevo_encargado": HX, "pago_encargado": HX, "listo_cliente": HX,
@@ -312,9 +313,56 @@ class TwilioAdapterTests(NotificacionesFixture, TestCase):
         )
         self.assertEqual(TwilioWhatsApp().enviar(self.salida), ResultadoEnvio(SID, "queued"))
         argumentos = http.return_value.request.call_args.kwargs
+        url = http.return_value.request.call_args.args[1]
+        self.assertTrue(url.startswith("https://api.twilio.com/"))
         self.assertEqual(argumentos["data"]["To"], "whatsapp:+56911111111")
         self.assertEqual(argumentos["data"]["ContentSid"], HX)
         self.assertEqual(json.loads(argumentos["data"]["ContentVariables"]), self.salida.parametros)
+
+    @override_settings(TWILIO_STATUS_CALLBACK_ENABLED=False, TWILIO_STATUS_CALLBACK_URL="")
+    @patch("pedidos.integrations.whatsapp.TwilioHttpClient")
+    def test_worker_envia_y_registra_sin_callback(self, http):
+        http.return_value.request.return_value = Response(
+            201, json.dumps({"sid": SID, "status": "queued"})
+        )
+        self.assertEqual(procesar_pendientes(), 1)
+        self.salida.refresh_from_db()
+        self.assertEqual(
+            (self.salida.estado, self.salida.estado_proveedor, self.salida.identificador_proveedor),
+            ("aceptado", "queued", SID),
+        )
+        self.assertNotIn("StatusCallback", http.return_value.request.call_args.kwargs["data"])
+        self.assertEqual(self.salida.historial_intentos.get().resultado, "aceptado")
+
+    @override_settings(
+        TWILIO_STATUS_CALLBACK_ENABLED=False, TWILIO_STATUS_CALLBACK_URL="no-es-una-url",
+        TWILIO_AUTH_TOKEN="", TWILIO_API_KEY_SID="SK" + "5" * 32,
+        TWILIO_API_KEY_SECRET="test-api-secret",
+    )
+    @patch("pedidos.integrations.whatsapp.Client")
+    def test_envio_con_api_key_no_requiere_token_ni_url_sin_callback(self, client):
+        client.return_value.messages.create.return_value = Mock(sid=SID, status="queued")
+        self.assertEqual(TwilioWhatsApp().enviar(self.salida), ResultadoEnvio(SID, "queued"))
+        self.assertNotIn("status_callback", client.return_value.messages.create.call_args.kwargs)
+
+    @override_settings(
+        TWILIO_STATUS_CALLBACK_ENABLED=True, TWILIO_AUTH_TOKEN="",
+        TWILIO_API_KEY_SID="SK" + "5" * 32, TWILIO_API_KEY_SECRET="test-api-secret",
+    )
+    def test_callback_habilitado_exige_token_aun_con_api_key(self):
+        with self.assertRaises(ErrorEnvio):
+            TwilioWhatsApp().enviar(self.salida)
+
+    @override_settings(TWILIO_STATUS_CALLBACK_ENABLED=True, TWILIO_STATUS_CALLBACK_URL="")
+    def test_callback_habilitado_exige_url_https(self):
+        with self.assertRaises(ErrorEnvio):
+            TwilioWhatsApp().enviar(self.salida)
+        with override_settings(TWILIO_STATUS_CALLBACK_URL="http://localhost:8000/callback/"):
+            with self.assertRaises(ErrorEnvio):
+                TwilioWhatsApp().enviar(self.salida)
+        with override_settings(TWILIO_STATUS_CALLBACK_URL="https://[invalida"):
+            with self.assertRaises(ErrorEnvio):
+                TwilioWhatsApp().enviar(self.salida)
 
     @patch("pedidos.integrations.whatsapp.TwilioHttpClient")
     def test_json_invalido_del_sdk_es_resultado_incierto(self, http):
@@ -355,6 +403,36 @@ class CallbackTests(NotificacionesFixture, TestCase):
         self.assertEqual(self.callback("sent", token=uuid.uuid4()).status_code, 404)
         self.assertEqual(self.callback("sent", sid="bad").status_code, 400)
         self.assertEqual(self.client.get(reverse("twilio_status_callback")).status_code, 405)
+
+    def test_activar_y_desactivar_callback_no_omite_la_firma(self):
+        with override_settings(TWILIO_STATUS_CALLBACK_ENABLED=False):
+            self.assertEqual(self.callback("sent").status_code, 404)
+        self.salida.refresh_from_db()
+        self.assertEqual(self.salida.estado_proveedor, "")
+        url = reverse("twilio_status_callback") + "?" + urlencode(
+            {"n": str(self.salida.token_callback)}
+        )
+        self.assertEqual(self.client.post(
+            url, {"MessageSid": SID, "MessageStatus": "sent"}
+        ).status_code, 403)
+        self.assertEqual(self.callback("sent", firma=False).status_code, 403)
+        self.assertEqual(self.callback("sent").status_code, 204)
+        self.salida.refresh_from_db()
+        self.assertEqual(self.salida.estado_proveedor, "sent")
+
+    @override_settings(TWILIO_ENABLED=False)
+    def test_callback_habilitado_funciona_con_envios_deshabilitados(self):
+        self.assertEqual(self.callback("sent").status_code, 204)
+        self.salida.refresh_from_db()
+        self.assertEqual(self.salida.estado_proveedor, "sent")
+
+    @override_settings(TWILIO_AUTH_TOKEN="")
+    def test_callback_habilitado_sin_token_no_procesa_solicitudes(self):
+        self.assertEqual(self.callback("sent").status_code, 503)
+
+    @override_settings(TWILIO_STATUS_CALLBACK_URL="https://[invalida")
+    def test_callback_habilitado_con_url_invalida_no_procesa_solicitudes(self):
+        self.assertEqual(self.callback("sent").status_code, 503)
 
     def test_callback_temprano_duplicado_y_fuera_de_orden(self):
         self.assertEqual(self.callback("delivered").status_code, 204)

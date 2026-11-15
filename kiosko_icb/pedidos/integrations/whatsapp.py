@@ -55,19 +55,38 @@ class TwilioWhatsApp:
             for clave in requeridas
         ):
             raise ErrorEnvio("Faltan variables requeridas para la plantilla.")
-        callback = settings.TWILIO_STATUS_CALLBACK_URL
-        url = urlsplit(callback)
-        if (url.scheme not in ("http", "https") or not url.netloc or url.query
-                or url.fragment or (not settings.DEBUG and url.scheme != "https")):
-            raise ErrorEnvio("URL de callback inválida; se requiere HTTPS en producción.")
-        if not (settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN
-                and settings.TWILIO_WHATSAPP_FROM and settings.TWILIO_MESSAGING_SERVICE_SID):
+        if not (settings.TWILIO_ACCOUNT_SID and settings.TWILIO_WHATSAPP_FROM
+                and settings.TWILIO_MESSAGING_SERVICE_SID):
             raise ErrorEnvio("Configuración Twilio incompleta.")
         if not re.fullmatch(r"whatsapp:\+[1-9][0-9]{7,14}", settings.TWILIO_WHATSAPP_FROM):
             raise ErrorEnvio("Remitente WhatsApp inválido.")
         api_key, api_secret = settings.TWILIO_API_KEY_SID, settings.TWILIO_API_KEY_SECRET
         if bool(api_key) != bool(api_secret):
             raise ErrorEnvio("Configuración de API Key Twilio incompleta.")
+        if not settings.TWILIO_AUTH_TOKEN and (
+            not api_key or settings.TWILIO_STATUS_CALLBACK_ENABLED
+        ):
+            raise ErrorEnvio("Auth Token Twilio requerido para autenticación o callbacks.")
+        argumentos = {
+            "from_": settings.TWILIO_WHATSAPP_FROM,
+            "to": f"whatsapp:{notificacion.telefono}",
+            "messaging_service_sid": settings.TWILIO_MESSAGING_SERVICE_SID,
+            "content_sid": content_sid,
+            "content_variables": json.dumps(parametros),
+        }
+        if settings.TWILIO_STATUS_CALLBACK_ENABLED:
+            callback = settings.TWILIO_STATUS_CALLBACK_URL
+            try:
+                url = urlsplit(callback)
+                _ = url.port
+            except ValueError as error:
+                raise ErrorEnvio("URL de callback inválida; se requiere una URL HTTPS pública.") from error
+            if (url.scheme != "https" or not url.hostname or url.username
+                    or url.password or url.query or url.fragment):
+                raise ErrorEnvio("URL de callback inválida; se requiere una URL HTTPS pública.")
+            argumentos["status_callback"] = (
+                f"{callback}?{urlencode({'n': str(notificacion.token_callback)})}"
+            )
         http_client = TwilioHttpClient(timeout=15, max_retries=0)
         client = Client(
             api_key or settings.TWILIO_ACCOUNT_SID,
@@ -76,14 +95,7 @@ class TwilioWhatsApp:
             http_client=http_client,
         )
         try:
-            mensaje = client.messages.create(
-                from_=settings.TWILIO_WHATSAPP_FROM,
-                to=f"whatsapp:{notificacion.telefono}",
-                messaging_service_sid=settings.TWILIO_MESSAGING_SERVICE_SID,
-                content_sid=content_sid,
-                content_variables=json.dumps(parametros),
-                status_callback=f"{callback}?{urlencode({'n': str(notificacion.token_callback)})}",
-            )
+            mensaje = client.messages.create(**argumentos)
         except TwilioRestException as error:
             if error.status == 429:
                 raise ErrorEnvio("Twilio limitó las solicitudes.", error.code, temporal=True) from error

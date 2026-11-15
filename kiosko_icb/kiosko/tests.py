@@ -1,7 +1,12 @@
 import json
+import os
+import runpy
 from decimal import Decimal
+from pathlib import Path
+from unittest.mock import patch
+from urllib.request import urlopen
 
-from django.test import TestCase, override_settings
+from django.test import Client, LiveServerTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from finanzas.models import MedioPago
@@ -113,3 +118,37 @@ class AutoservicioTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertFalse(Pedido.objects.exists())
+
+    def test_http_local_con_cookies_y_csrf_sin_debug(self):
+        settings_path = Path(__file__).resolve().parent.parent / "kiosko_icb" / "settings.py"
+        with patch.dict(os.environ, {"DEBUG": "false"}, clear=True), patch("dotenv.load_dotenv"):
+            local = runpy.run_path(str(settings_path))
+        with override_settings(
+            DEBUG=False, ALLOWED_HOSTS=["localhost"],
+            SECURE_SSL_REDIRECT=local["SECURE_SSL_REDIRECT"],
+            SESSION_COOKIE_SECURE=local["SESSION_COOKIE_SECURE"],
+            CSRF_COOKIE_SECURE=local["CSRF_COOKIE_SECURE"],
+        ):
+            cliente = Client(enforce_csrf_checks=True)
+            respuesta = cliente.get(reverse("index"), HTTP_HOST="localhost")
+            self.assertEqual(respuesta.status_code, 200)
+            csrf = respuesta.cookies["csrftoken"]
+            self.assertFalse(csrf["secure"])
+            respuesta = cliente.post(
+                reverse("crear_pedido"),
+                {
+                    "items": json.dumps([{"product_id": self.product.pk, "quantity": 1}]),
+                    "medio_pago_id": self.payment_method.pk,
+                },
+                HTTP_HOST="localhost", HTTP_X_CSRFTOKEN=csrf.value,
+            )
+            self.assertEqual(respuesta.status_code, 200)
+            self.assertFalse(respuesta.cookies["sessionid"]["secure"])
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class ServidorLocalTests(LiveServerTestCase):
+    def test_servidor_responde_por_http_en_loopback(self):
+        self.assertTrue(self.live_server_url.startswith("http://localhost:"))
+        with urlopen(self.live_server_url, timeout=5) as respuesta:
+            self.assertEqual(respuesta.status, 200)
