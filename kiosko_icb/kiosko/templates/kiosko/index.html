@@ -206,21 +206,22 @@
                         <div class="checkout-total"><span>Total a pagar</span><strong id="checkout-total">$0</strong></div>
                         <form id="checkout-form" action="{% url 'crear_pedido' %}" method="post">
                             {% csrf_token %}
+                            {{ checkout_form.items }}
                             <label class="field-label" for="customer-name">¿A nombre de quién? <span>Opcional</span></label>
-                            <input class="text-field form-control" id="customer-name" name="cliente" type="text" maxlength="100" autocomplete="name" placeholder="Tu nombre">
+                            {{ checkout_form.cliente }}
                             <label class="field-label mt-3" for="customer-phone">Número de teléfono <span>Opcional</span></label>
-                            <input class="text-field form-control" id="customer-phone" name="telefono_cliente" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" placeholder="+56 9 1234 5678">
+                            {{ checkout_form.telefono_cliente }}
                             <label class="form-check mt-3">
-                                <input class="form-check-input" type="checkbox" name="acepta_notificaciones_whatsapp">
+                                {{ checkout_form.acepta_notificaciones_whatsapp }}
                                 <span class="form-check-label">Acepto recibir por WhatsApp información sobre el estado de mi pedido. Puedo pedir que se revoque esta autorización al encargado.</span>
                             </label>
                             <fieldset class="payment-fieldset">
                                 <legend>¿Cómo prefieres pagar?</legend>
                                 <p>Seleccionar un medio no significa que el pago ya esté realizado.</p>
                                 <div class="payment-options">
-                                    {% for method in payment_methods %}
+                                    {% for radio, method in payment_options %}
                                         <label class="payment-option form-check">
-                                            <input class="form-check-input" type="radio" name="medio_pago_id" value="{{ method.id }}" required>
+                                            {{ radio.tag }}
                                             <span class="payment-radio" aria-hidden="true"></span>
                                             <span class="payment-option-copy"><strong>{{ method.nombre }}</strong><small>{% if method.tipo == "EF" %}En el punto de atención{% elif method.tipo == "TC" %}En el punto de atención{% else %}Pendiente de verificación{% endif %}</small></span>
                                             <span class="payment-option-icon" aria-hidden="true">

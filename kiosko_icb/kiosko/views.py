@@ -1,6 +1,4 @@
-import json
 from decimal import Decimal, ROUND_HALF_UP
-from json import JSONDecodeError
 
 from django.core.exceptions import ValidationError
 from django.http import Http404, JsonResponse
@@ -13,10 +11,14 @@ from pedidos.models import Pedido
 from pedidos.services import crear_pedido_autoservicio
 from productos.models import Categoria, Producto
 
+from .forms import CheckoutForm
+
 
 def _catalog_context():
     categories = list(Categoria.objects.order_by("id"))
     products = list(Producto.objects.select_related("categoria").order_by("id"))
+    payment_methods = list(MedioPago.objects.order_by("nombre"))
+    checkout_form = CheckoutForm(payment_methods=payment_methods)
     products_by_category = {category.pk: [] for category in categories}
     for product in products:
         products_by_category.setdefault(product.categoria_id, []).append(product)
@@ -64,7 +66,9 @@ def _catalog_context():
         "categories": categories,
         "featured_products": featured_products,
         "hero_product": hero_product,
-        "payment_methods": MedioPago.objects.order_by("nombre"),
+        "payment_methods": payment_methods,
+        "checkout_form": checkout_form,
+        "payment_options": zip(checkout_form["medio_pago_id"], payment_methods),
         "product_data": product_data,
     }
 
@@ -75,29 +79,17 @@ def index(request):
 
 @require_POST
 def crear_pedido(request):
-    try:
-        items = json.loads(request.POST.get("items", ""))
-    except JSONDecodeError:
-        return JsonResponse(
-            {"error": "El detalle del pedido no tiene un formato válido."},
-            status=400,
-        )
+    form = CheckoutForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse({"error": next(iter(form.errors.values()))[0]}, status=400)
 
     try:
-        medio_pago_id = int(request.POST.get("medio_pago_id", ""))
-    except (TypeError, ValueError):
-        medio_pago_id = None
-
-    try:
-        consentimiento = request.POST.get("acepta_notificaciones_whatsapp")
-        if consentimiento not in (None, "on"):
-            raise ValidationError("La autorización de WhatsApp no es válida.")
         pedido = crear_pedido_autoservicio(
-            items=items,
-            medio_pago_id=medio_pago_id,
-            cliente=request.POST.get("cliente", ""),
-            telefono_cliente=request.POST.get("telefono_cliente", ""),
-            acepta_notificaciones_whatsapp=consentimiento == "on",
+            items=form.cleaned_data["items"],
+            medio_pago_id=form.cleaned_data["medio_pago_id"],
+            cliente=form.cleaned_data["cliente"],
+            telefono_cliente=form.cleaned_data["telefono_cliente"],
+            acepta_notificaciones_whatsapp=form.cleaned_data["acepta_notificaciones_whatsapp"],
         )
     except ValidationError as error:
         return JsonResponse({"error": error.messages[0]}, status=400)

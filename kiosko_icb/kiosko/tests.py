@@ -2,6 +2,7 @@ import json
 import os
 import runpy
 from decimal import Decimal
+from html.parser import HTMLParser
 from pathlib import Path
 from unittest.mock import patch
 from urllib.request import urlopen
@@ -12,6 +13,8 @@ from django.urls import reverse
 from finanzas.models import MedioPago
 from pedidos.models import DetallePedido, Pedido
 from productos.models import Categoria, Producto
+
+from .forms import CheckoutForm
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -118,6 +121,114 @@ class AutoservicioTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertFalse(Pedido.objects.exists())
+
+    def test_checkout_renderiza_los_campos_del_formulario(self):
+        tarjeta = MedioPago.objects.create(tipo="TC", nombre="Tarjeta")
+        response = self.client.get(reverse("index"))
+        self.assertIsInstance(response.context["checkout_form"], CheckoutForm)
+        self.assertContains(response, 'name="items"')
+        self.assertContains(response, 'id="customer-name"')
+        self.assertContains(response, 'id="customer-phone"')
+        self.assertContains(response, 'name="acepta_notificaciones_whatsapp"')
+        self.assertContains(response, 'name="medio_pago_id"')
+        self.assertContains(response, f'value="{self.payment_method.pk}"')
+        self.assertContains(response, "Tarjeta")
+
+        class Inputs(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.radios = []
+
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == "input" and attrs.get("name") == "medio_pago_id":
+                    self.radios.append(attrs)
+
+        parser = Inputs()
+        parser.feed(response.content.decode())
+        self.assertEqual(
+            {radio["value"] for radio in parser.radios},
+            {str(self.payment_method.pk), str(tarjeta.pk)},
+        )
+        for radio in parser.radios:
+            self.assertEqual(radio["type"], "radio")
+            self.assertEqual(radio["class"], "form-check-input")
+            self.assertIn("required", radio)
+
+    def test_checkout_sin_medios_de_pago_deshabilita_confirmacion(self):
+        self.payment_method.delete()
+        response = self.client.get(reverse("index"))
+        self.assertContains(response, "No hay medios de pago disponibles en este momento.")
+        self.assertContains(response, 'type="submit" disabled')
+
+    def test_formulario_limpia_items_y_rechaza_consentimiento_alterado(self):
+        data = {
+            "items": json.dumps([{"product_id": self.product.pk, "quantity": 1}]),
+            "medio_pago_id": str(self.payment_method.pk),
+            "cliente": "  Alex  ",
+            "telefono_cliente": "+56 9 1234 5678",
+            "acepta_notificaciones_whatsapp": "on",
+        }
+        form = CheckoutForm(data)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["items"][0]["product_id"], self.product.pk)
+        self.assertEqual(form.cleaned_data["medio_pago_id"], self.payment_method.pk)
+        self.assertTrue(form.cleaned_data["acepta_notificaciones_whatsapp"])
+        self.assertEqual(form.cleaned_data["cliente"], "  Alex  ")
+        for value in ("false", "true", "1", ""):
+            with self.subTest(value=value):
+                form = CheckoutForm({**data, "acepta_notificaciones_whatsapp": value})
+                self.assertFalse(form.is_valid())
+                self.assertEqual(
+                    form.errors["acepta_notificaciones_whatsapp"][0],
+                    "La autorización de WhatsApp no es válida.",
+                )
+
+    def test_checkout_conserva_errores_y_prioridad_de_validacion(self):
+        items = json.dumps([{"product_id": self.product.pk, "quantity": 1}])
+        casos = [
+            ({}, "El detalle del pedido no tiene un formato válido."),
+            ({"items": "{", "acepta_notificaciones_whatsapp": "false"},
+             "El detalle del pedido no tiene un formato válido."),
+            ({"items": items, "acepta_notificaciones_whatsapp": "false"},
+             "La autorización de WhatsApp no es válida."),
+            ({"items": items}, "Selecciona un medio de pago disponible."),
+            ({"items": items, "medio_pago_id": "no-numero"},
+             "Selecciona un medio de pago disponible."),
+            ({"items": items, "medio_pago_id": 999999},
+             "El medio de pago seleccionado ya no está disponible."),
+            ({"items": "{}", "medio_pago_id": self.payment_method.pk},
+             "Agrega al menos un producto antes de confirmar."),
+            ({"items": items, "medio_pago_id": self.payment_method.pk, "cliente": "x" * 101},
+             "El nombre no puede superar los 100 caracteres."),
+            ({"items": items, "medio_pago_id": self.payment_method.pk,
+              "telefono_cliente": " " * 21}, "El teléfono es demasiado largo."),
+            ({"items": items, "medio_pago_id": self.payment_method.pk,
+              "acepta_notificaciones_whatsapp": "on"},
+             "Ingresa un teléfono para recibir notificaciones."),
+        ]
+        for datos, mensaje in casos:
+            with self.subTest(datos=datos):
+                response = self.client.post(reverse("crear_pedido"), datos)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json(), {"error": mensaje})
+                self.assertFalse(Pedido.objects.exists())
+
+    def test_checkout_preserva_campos_y_cantidades_invalidas(self):
+        for item, mensaje in (
+            ({"product_id": True, "quantity": 1}, "Uno de los productos no es válido."),
+            ({"product_id": self.product.pk, "quantity": 0},
+             "La cantidad de un producto no es válida."),
+            ({"product_id": self.product.pk, "quantity": 4}, "Stock insuficiente"),
+        ):
+            with self.subTest(item=item):
+                response = self.client.post(
+                    reverse("crear_pedido"),
+                    {"items": json.dumps([item]), "medio_pago_id": self.payment_method.pk},
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertIn(mensaje, response.json()["error"])
+                self.assertFalse(Pedido.objects.exists())
 
     def test_http_local_con_cookies_y_csrf_sin_debug(self):
         settings_path = Path(__file__).resolve().parent.parent / "kiosko_icb" / "settings.py"
