@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import threading
+import time
 import uuid
 from datetime import timedelta
 from decimal import Decimal
@@ -183,15 +184,6 @@ class WorkerTests(NotificacionesFixture, TestCase):
         self.assertEqual(self.salida.identificador_proveedor, SID)
         self.assertEqual(self.salida.historial_intentos.get().resultado, "aceptado")
         proveedor.enviar.assert_called_once()
-
-    def test_comando_worker_procesa_outbox(self):
-        salida = StringIO()
-        with patch("pedidos.procesamiento.TwilioWhatsApp") as proveedor:
-            proveedor.return_value.enviar.return_value = ResultadoEnvio(SID, "queued")
-            call_command("procesar_notificaciones", once=True, stdout=salida)
-        self.salida.refresh_from_db()
-        self.assertEqual(self.salida.estado, "aceptado")
-        self.assertIn("Notificaciones procesadas: 1", salida.getvalue())
 
     def test_reclamacion_concurrente_no_reenvia(self):
         proveedor = Mock()
@@ -474,6 +466,16 @@ class CallbackTests(NotificacionesFixture, TestCase):
 
 @override_settings(**CONFIG)
 class WorkerConcurrenciaTests(NotificacionesFixture, TransactionTestCase):
+    def test_comando_worker_procesa_outbox(self):
+        salida = self.crear().notificaciones_salida.get()
+        stdout = StringIO()
+        with patch("pedidos.procesamiento.TwilioWhatsApp") as proveedor:
+            proveedor.return_value.enviar.return_value = ResultadoEnvio(SID, "queued")
+            call_command("procesar_notificaciones", once=True, stdout=stdout)
+        salida.refresh_from_db()
+        self.assertEqual(salida.estado, "aceptado")
+        self.assertIn("Notificaciones procesadas: 1", stdout.getvalue())
+
     def test_dos_workers_no_reclaman_el_mismo_registro(self):
         self.crear()
         iniciada = threading.Event()
@@ -718,7 +720,7 @@ class TomaPedidoTests(NotificacionesFixture, TestCase):
             error.__cause__ = causa
             with self.subTest(codigo=codigo), patch(
                 "pedidos.services.Pedido.objects.filter"
-            ) as consulta:
+            ) as consulta, patch("pedidos.services.connection.vendor", "sqlite"):
                 consulta.return_value.update.side_effect = error
                 with self.assertLogs("pedidos.services", level="WARNING"):
                     with self.assertRaisesMessage(ValidationError, "base de datos está ocupada"):
@@ -784,22 +786,73 @@ class TomaPedidoConcurrenciaTests(NotificacionesFixture, TransactionTestCase):
                 connections["default"].close()
 
         conexion = connections["default"]
-        with conexion.cursor() as cursor:
-            timeout = cursor.execute("PRAGMA busy_timeout").fetchone()[0]
-            cursor.execute("PRAGMA busy_timeout = 10")
+        sqlite = conexion.vendor == "sqlite"
+        if sqlite:
+            with conexion.cursor() as cursor:
+                timeout = cursor.execute("PRAGMA busy_timeout").fetchone()[0]
+                cursor.execute("PRAGMA busy_timeout = 10")
         hilo = threading.Thread(target=ejecutar)
         try:
             with patch("pedidos.services.notificaciones.notificar_pedido_tomado", notificar):
                 hilo.start()
                 self.assertTrue(iniciada.wait(5))
-                with self.assertLogs("pedidos.services", level="WARNING"):
-                    with self.assertRaisesMessage(ValidationError, "base de datos está ocupada"):
-                        tomar_pedido(pedido.pk, segundo)
+                if sqlite:
+                    with self.assertLogs("pedidos.services", level="WARNING"):
+                        with self.assertRaisesMessage(ValidationError, "base de datos está ocupada"):
+                            tomar_pedido(pedido.pk, segundo)
+                else:
+                    empezo = threading.Event()
+                    resultado = []
+                    rival_pid = []
+
+                    def segundo_intento():
+                        def observar(execute, sql, params, many, context):
+                            if sql.startswith('UPDATE "pedidos_pedido"'):
+                                rival_pid.append(context["connection"].connection.info.backend_pid)
+                                empezo.set()
+                            return execute(sql, params, many, context)
+
+                        try:
+                            with connections["default"].execute_wrapper(observar):
+                                tomar_pedido(pedido.pk, segundo)
+                            resultado.append("éxito inesperado")
+                        except ValidationError as error:
+                            resultado.append(error.messages[0])
+                        except Exception as error:
+                            errores.append(error)
+                        finally:
+                            connections["default"].close()
+
+                    rival = threading.Thread(target=segundo_intento)
+                    rival.start()
+                    try:
+                        self.assertTrue(empezo.wait(5))
+                        limite = time.monotonic() + 5
+                        esperando = False
+                        while time.monotonic() < limite:
+                            with conexion.cursor() as cursor:
+                                cursor.execute(
+                                    "SELECT wait_event_type FROM pg_stat_activity WHERE pid = %s",
+                                    [rival_pid[0]],
+                                )
+                                fila = cursor.fetchone()
+                            if fila and fila[0] == "Lock":
+                                esperando = True
+                                break
+                            time.sleep(0.01)
+                        self.assertTrue(esperando, "El segundo intento no esperó el bloqueo.")
+                    finally:
+                        terminar.set()
+                        rival.join(10)
+                    self.assertFalse(rival.is_alive())
+                    self.assertEqual(len(resultado), 1)
+                    self.assertIn("Otro encargado ya tomó", resultado[0])
         finally:
             terminar.set()
             hilo.join(10)
-            with conexion.cursor() as cursor:
-                cursor.execute(f"PRAGMA busy_timeout = {timeout}")
+            if sqlite:
+                with conexion.cursor() as cursor:
+                    cursor.execute(f"PRAGMA busy_timeout = {timeout}")
         self.assertFalse(hilo.is_alive())
         self.assertFalse(errores, errores)
         pedido.refresh_from_db()

@@ -1,13 +1,15 @@
 # Kiosko ICB: ejecución local
 
-La aplicación usa SQLite y se ejecuta en este equipo. Django escucha por HTTP
-en `127.0.0.1`; el SDK de Twilio realiza sus solicitudes salientes por HTTPS.
-El worker es otro proceso local. No se requieren Redis, Docker ni un servidor
-público.
+La aplicación y el worker se ejecutan directamente en este equipo. PostgreSQL
+17.6 se ejecuta en Docker Compose, con puerto `127.0.0.1:5432` y volumen
+persistente. Django escucha por HTTP en `127.0.0.1`; Twilio usa HTTPS saliente.
+No se requieren Redis, Celery ni un servidor público. SQLite sigue disponible
+como alternativa.
 
 ## Preparación
 
-Desde la carpeta `kiosko_icb`, con Python 3.14:
+Requisitos: Python 3.14, Docker con Compose y el motor de Docker iniciado.
+Desde la carpeta `kiosko_icb`:
 
 ```sh
 python3 -m venv .venv
@@ -15,10 +17,12 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-Configura el archivo local `.env`, sin compartirlo ni subirlo al repositorio.
-Conserva la `SECRET_KEY` existente; si falta, genera una con
-`python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'`
-y añádela al archivo. Para funcionamiento local:
+Configura el archivo local `.env` usando `.env.example` como referencia, sin
+compartirlo ni subirlo al repositorio. Si ya existe, conserva sus variables y
+la `SECRET_KEY`; no copies el ejemplo encima. Si falta, genera una clave con
+`python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'`.
+En `.env`, escribe la `SECRET_KEY` entre comillas simples para que Compose no
+interprete como variables los caracteres `$` de la clave.
 
 ```dotenv
 DEBUG=true
@@ -26,21 +30,56 @@ ALLOWED_HOSTS=localhost,127.0.0.1
 SECURE_SSL_REDIRECT=false
 SESSION_COOKIE_SECURE=false
 CSRF_COOKIE_SECURE=false
+DB_ENGINE=postgresql
+DB_NAME=kiosko_icb
+DB_USER=kiosko_user
+DB_PASSWORD=CAMBIAR_POR_UNA_CLAVE_SEGURA
+DB_HOST=127.0.0.1
+DB_PORT=5432
 TWILIO_ENABLED=false
 TWILIO_STATUS_CALLBACK_ENABLED=false
 ```
+
+Reemplaza `DB_PASSWORD` por una contraseña aleatoria segura. Compose utiliza
+las mismas variables `DB_NAME`, `DB_USER` y `DB_PASSWORD` para inicializar
+PostgreSQL. La imagen solo las aplica al crear un volumen vacío: cambiar
+después el `.env` no cambia automáticamente el usuario, contraseña ni base
+existentes. No borres el volumen para cambiar credenciales.
 
 La configuración local predeterminada no fuerza HTTPS ni cookies seguras,
 incluso con `DEBUG=false`. Usa `DEBUG=true` solo para desarrollo local: Django
 sirve así los archivos estáticos y multimedia durante el desarrollo. Mantén
 el servidor vinculado a `127.0.0.1`.
 
-Aplica las migraciones a SQLite y, si aún no tienes un administrador, créalo:
+Inicia PostgreSQL y comprueba su disponibilidad:
 
 ```sh
+docker compose up -d
+docker compose ps
+docker compose logs -f postgres
+docker compose exec postgres pg_isready
+```
+
+Para detener el seguimiento de logs usa `Ctrl+C`. Luego aplica las migraciones:
+
+```sh
+python manage.py check
 python manage.py migrate
+```
+
+Si es una instalación nueva, sin datos restaurados y sin administrador:
+
+```sh
 python manage.py createsuperuser
 ```
+
+Para detener PostgreSQL sin borrar su volumen:
+
+```sh
+docker compose down
+```
+
+No uses `docker compose down -v`: eliminaría los datos persistidos.
 
 ## Iniciar la aplicación
 
@@ -63,6 +102,63 @@ python manage.py procesar_notificaciones --interval 10 --limit 100
 El worker sigue ejecutándose hasta detenerlo con `Ctrl+C`. Para procesar un
 solo lote y terminar, utiliza `python manage.py procesar_notificaciones --once`.
 Reinicia Django y el worker después de cambiar `.env`.
+
+## Respaldos y recuperación
+
+Los respaldos contienen datos sensibles: guárdalos con permisos restringidos y
+no los subas a Git. El siguiente comando crea un respaldo PostgreSQL en formato
+custom; elige un nombre que no exista:
+
+```sh
+umask 077
+(set -C; docker compose exec -T postgres sh -c \
+  'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > backup_postgres.dump)
+```
+
+Comprueba que el archivo no esté vacío y que PostgreSQL pueda leer su índice:
+
+```sh
+test -s backup_postgres.dump
+docker compose exec -T postgres pg_restore -l < backup_postgres.dump
+```
+
+Para restaurarlo sin sobrescribir la base activa, detén Django y el worker y
+crea una base nueva con un nombre que no exista; si ya existe, detente:
+
+```sh
+docker compose exec -T postgres sh -c \
+  'exec createdb -U "$POSTGRES_USER" kiosko_restaurado'
+docker compose exec -T postgres sh -c \
+  'exec pg_restore -U "$POSTGRES_USER" -d kiosko_restaurado --no-owner --exit-on-error' \
+  < backup_postgres.dump
+```
+
+Una restauración fallida puede dejar esa nueva base parcialmente cargada: no
+repitas la carga encima. Verifica los datos en la nueva base antes de cambiar
+`DB_NAME` en `.env` y reiniciar Django y el worker. Cambiar `DB_NAME` no crea
+una base adicional en un volumen ya inicializado. Conserva el respaldo y la
+base original.
+
+Para volver temporalmente a SQLite, detén Django y el worker, cambia
+`DB_ENGINE=sqlite` en `.env` y reinícialos. Se utilizará el archivo local
+`db.sqlite3` con los datos que tenga; **no** se sincroniza automáticamente con
+PostgreSQL. Conserva ambas bases y respalda antes de volver a migrar datos.
+
+Para migrar una SQLite existente a una instalación PostgreSQL vacía, detén
+Django y el worker, guarda una copia física consistente de `db.sqlite3` y
+verifica su integridad. Con `DB_ENGINE=sqlite`, genera un respaldo lógico en
+un archivo nuevo:
+
+```sh
+(set -C; python manage.py dumpdata --natural-foreign --natural-primary \
+  --exclude contenttypes --exclude auth.permission > backup_kiosko.json)
+```
+
+Verifica el respaldo. Cambia a PostgreSQL solo después de comprobar que la base
+de destino está vacía; ejecuta `python manage.py migrate` y luego
+`python manage.py loaddata backup_kiosko.json`. Comprueba los datos y relaciones
+antes de iniciar Django o el worker. No cargues el volcado sobre datos
+existentes ni elimines la SQLite original o su copia.
 
 ## Activar envíos de Twilio
 
@@ -177,6 +273,8 @@ no reciben retroactivamente actualizaciones al habilitarlo.
 ## Pruebas y recuperación
 
 Ejecuta `python manage.py test`. La suite simula Twilio y no envía mensajes.
+Para la suite de pedidos y kiosko usa `python manage.py test pedidos kiosko`;
+PostgreSQL necesita que `DB_USER` pueda crear la base de pruebas.
 Los rechazos HTTP 429 se reintentan con límite. Los timeouts o procesos
 interrumpidos quedan en estado incierto para revisión: no se reenvían
 automáticamente, ya que el proveedor podría haber aceptado el mensaje.
