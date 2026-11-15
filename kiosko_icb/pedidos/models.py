@@ -41,6 +41,15 @@ class Pedido(models.Model):
     creado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
     )
+    responsable = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pedidos_asignados",
+        editable=False,
+    )
+    asignado_en = models.DateTimeField(null=True, blank=True, editable=False)
     actualizado_en = models.DateTimeField(auto_now=True)
     version_notificacion = models.PositiveIntegerField(default=0, editable=False)
 
@@ -119,6 +128,14 @@ class EncargadoWhatsApp(models.Model):
     nombre = models.CharField(max_length=100)
     telefono = models.CharField(max_length=20, unique=True)
     autorizado = models.BooleanField(default=False)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="destinatarios_whatsapp",
+        help_text="Solo identifica al usuario para excluir sus avisos de toma de pedido.",
+    )
 
     class Meta:
         verbose_name = "Destinatario encargado WhatsApp"
@@ -144,7 +161,10 @@ class NotificacionSalida(models.Model):
     pedido = models.ForeignKey(
         Pedido, on_delete=models.PROTECT, related_name="notificaciones_salida"
     )
-    evento = models.CharField(max_length=1, choices=NotificacionWhatsApp.EVENTOS)
+    evento = models.CharField(
+        max_length=1,
+        choices=NotificacionWhatsApp.EVENTOS + [("T", "Pedido tomado")],
+    )
     clave_evento = models.CharField(max_length=100)
     tipo_destinatario = models.CharField(max_length=10, choices=Destinatario.choices)
     telefono = models.CharField(max_length=20)

@@ -75,6 +75,7 @@ En `.env`, configura `TWILIO_ENABLED=true` y los valores reales de:
 - `TWILIO_WHATSAPP_FROM`, con formato `whatsapp:+` y número E.164 habilitado.
 - `TWILIO_MESSAGING_SERVICE_SID`, con el remitente en su pool.
 - `TWILIO_CONTENT_TEMPLATE_NUEVO_ENCARGADO`.
+- `TWILIO_CONTENT_TEMPLATE_TOMADO_ENCARGADO`.
 - `TWILIO_CONTENT_TEMPLATE_PAGO_ENCARGADO`.
 - `TWILIO_CONTENT_TEMPLATE_LISTO_CLIENTE`.
 - `TWILIO_CONTENT_TEMPLATE_ANULADO_ENCARGADO`.
@@ -89,6 +90,40 @@ impide intentos futuros, pero no cancela un envío ya en curso.
 Con `TWILIO_ENABLED=false` no se generan nuevas intenciones ni se procesan
 pendientes. Al habilitarlo no se crean notificaciones retroactivas. Los pedidos
 no esperan una respuesta de Twilio.
+
+## Tomar pedidos desde administración
+
+En la lista de pedidos, selecciona un pedido disponible y ejecuta
+**Tomar pedidos disponibles**. Puede hacerlo quien ya tenga acceso a esa
+lista en Django Admin (usuario activo y staff con el acceso existente de
+consulta o cambio, incluidos los superusuarios). No se crean grupos, roles
+ni permisos personalizados, ni hace falta configurar permisos adicionales.
+
+La toma solo permite pedidos en estado `P` sin responsable, independientemente
+del estado de pago. Registra al usuario autenticado y la fecha, y cambia el
+estado a `E`. Los filtros de asignación muestran disponibles, propios y ajenos.
+Responsable y fecha no se pueden editar directamente. El creador del pedido
+es independiente de su responsable.
+
+La actualización condicional y las intenciones del Outbox se guardan en una
+misma transacción. Si otro usuario ya lo tomó, se muestra un aviso sin
+sobrescribir la asignación. Si SQLite está ocupada, la operación falla de
+forma controlada: actualiza la lista y vuelve a intentarlo. Un error al
+guardar el Outbox revierte la toma; un fallo posterior de Twilio no la revierte.
+
+Vincula opcionalmente cada destinatario encargado WhatsApp con su cuenta Django
+para excluirlo de los avisos de sus propias tomas. Este vínculo no concede
+acceso ni es necesario para tomar pedidos; los destinatarios sin vínculo
+siguen recibiendo avisos si están autorizados. La plantilla aprobada
+`TWILIO_CONTENT_TEMPLATE_TOMADO_ENCARGADO` usa `{{1}}` para el número de pedido
+y `{{2}}` para el nombre completo del responsable (o su usuario si no tiene
+nombre). Solo el worker envía estos mensajes. Reinícialo después de configurar
+el Content SID.
+
+Los pedidos existentes quedan sin responsable: solo los que aún estén en `P`
+pueden tomarse. Al eliminar una cuenta Django, su responsable se establece en
+nulo y se conserva la fecha de asignación; el pedido no vuelve a estar
+disponible porque la toma ya lo pasó a `E`.
 
 ## Callbacks deshabilitados
 

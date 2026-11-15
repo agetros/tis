@@ -1,9 +1,13 @@
+import logging
+import sqlite3
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.conf import settings
+from django.contrib import admin
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import OperationalError, connection, transaction
 from django.db.models import F, Sum
+from django.http import HttpRequest
 from django.utils import timezone
 
 from finanzas.models import MedioPago, MovimientoFinanciero
@@ -11,6 +15,8 @@ from productos.models import Producto
 
 from . import notificaciones
 from .models import DetallePedido, Pedido
+
+logger = logging.getLogger(__name__)
 
 
 def _generar_numero_pedido(pedido):
@@ -226,6 +232,55 @@ def crear_pedido_encargado(
     _registrar_evento(pedido, notificaciones.notificar_pedido_nuevo)
 
     return pedido
+
+
+def tomar_pedido(pedido_id, usuario):
+    request = HttpRequest()
+    request.user = usuario
+    pedido_admin = admin.site.get_model_admin(Pedido)
+    if (
+        not usuario.is_authenticated
+        or not admin.site.has_permission(request)
+        or not pedido_admin.has_view_or_change_permission(request)
+    ):
+        raise ValidationError("No tienes acceso a la gestión de pedidos.")
+
+    try:
+        with transaction.atomic():
+            ahora = timezone.now()
+            # La primera consulta de la transacción es la escritura condicional.
+            actualizados = Pedido.objects.filter(
+                pk=pedido_id, estado="P", responsable__isnull=True,
+            ).update(
+                responsable=usuario,
+                asignado_en=ahora,
+                estado="E",
+                actualizado_en=ahora,
+                version_notificacion=F("version_notificacion") + 1,
+            )
+            if actualizados == 0:
+                if not Pedido.objects.filter(pk=pedido_id).exists():
+                    raise ValidationError("El pedido no existe.")
+                raise ValidationError(
+                    "Otro encargado ya tomó el pedido o dejó de estar disponible."
+                )
+            pedido = Pedido.objects.select_related("responsable").get(pk=pedido_id)
+            notificaciones.notificar_pedido_tomado(pedido)
+        return pedido
+    except OperationalError as error:
+        codigo = getattr(error.__cause__, "sqlite_errorcode", None)
+        if (
+            connection.vendor != "sqlite"
+            or codigo is None
+            or codigo & 0xFF not in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED)
+        ):
+            raise
+        logger.warning("Contención de SQLite al tomar el pedido %s", pedido_id)
+        raise ValidationError(
+            "No se pudo tomar el pedido porque la base de datos está ocupada. "
+            "Actualiza la lista y vuelve a intentarlo; puede haber sido tomado "
+            "por otro encargado."
+        ) from error
 
 
 @transaction.atomic

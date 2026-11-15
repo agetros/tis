@@ -53,8 +53,11 @@ def _registrar(pedido, evento, tipo, telefono, parametros, encargado=None):
     )
 
 
-def _encargados(pedido, evento, parametros):
-    for encargado in EncargadoWhatsApp.objects.filter(autorizado=True):
+def _encargados(pedido, evento, parametros, excluir_usuario_id=None):
+    encargados = EncargadoWhatsApp.objects.filter(autorizado=True)
+    if excluir_usuario_id is not None:
+        encargados = encargados.exclude(usuario_id=excluir_usuario_id)
+    for encargado in encargados:
         _registrar(
             pedido, evento, NotificacionSalida.Destinatario.ENCARGADO,
             encargado.telefono, parametros, encargado,
@@ -88,6 +91,15 @@ def notificar_pago_confirmado(pedido):
         "2": formato_pesos(pedido.total),
         "3": str(pedido.medio_pago),
     })
+
+
+def notificar_pedido_tomado(pedido):
+    if not settings.TWILIO_ENABLED:
+        return
+    _encargados(pedido, "T", {
+        "1": pedido.numero_pedido,
+        "2": pedido.responsable.get_full_name() or pedido.responsable.get_username(),
+    }, excluir_usuario_id=pedido.responsable_id)
 
 
 def notificar_pedido_listo(pedido):

@@ -33,6 +33,7 @@ class ProveedorMensajeria(Protocol):
 
 PLANTILLAS = {
     ("N", "encargado"): ("nuevo_encargado", ("1", "2", "3", "4")),
+    ("T", "encargado"): ("tomado_encargado", ("1", "2")),
     ("P", "encargado"): ("pago_encargado", ("1", "2", "3")),
     ("L", "cliente"): ("listo_cliente", ("1", "2")),
     ("A", "encargado"): ("anulado_encargado", ("1", "2")),

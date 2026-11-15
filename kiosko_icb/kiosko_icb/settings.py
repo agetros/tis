@@ -165,6 +165,7 @@ TWILIO_STATUS_CALLBACK_ENABLED = os.getenv(
 TWILIO_STATUS_CALLBACK_URL = os.getenv("TWILIO_STATUS_CALLBACK_URL", "")
 TWILIO_CONTENT_TEMPLATES = {
     "nuevo_encargado": os.getenv("TWILIO_CONTENT_TEMPLATE_NUEVO_ENCARGADO", ""),
+    "tomado_encargado": os.getenv("TWILIO_CONTENT_TEMPLATE_TOMADO_ENCARGADO", ""),
     "pago_encargado": os.getenv("TWILIO_CONTENT_TEMPLATE_PAGO_ENCARGADO", ""),
     "listo_cliente": os.getenv("TWILIO_CONTENT_TEMPLATE_LISTO_CLIENTE", ""),
     "anulado_encargado": os.getenv("TWILIO_CONTENT_TEMPLATE_ANULADO_ENCARGADO", ""),

@@ -18,8 +18,47 @@ from .services import (
     completar_pedido,
     marcar_como_listo,
     marcar_como_pagado,
+    tomar_pedido,
 )
 from .notificaciones import normalizar_telefono
+
+
+@admin.action(permissions=["view"], description="Tomar pedidos disponibles")
+def accion_tomar_pedido(modeladmin, request, queryset):
+    exitosos = 0
+    for pedido in queryset:
+        try:
+            tomar_pedido(pedido.pk, request.user)
+            exitosos += 1
+        except ValidationError as error:
+            modeladmin.message_user(request, f"{pedido}: {error}", level=messages.WARNING)
+    if exitosos:
+        modeladmin.message_user(
+            request, f"{exitosos} pedido(s) tomado(s).", level=messages.SUCCESS
+        )
+
+
+class AsignacionPedidoFilter(admin.SimpleListFilter):
+    title = "asignación"
+    parameter_name = "asignacion"
+
+    def lookups(self, request, modeladmin):
+        return (
+            ("disponibles", "Disponibles"),
+            ("mios", "Asignados a mí"),
+            ("otros", "Asignados a otros"),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == "disponibles":
+            return queryset.filter(estado="P", responsable__isnull=True)
+        if self.value() == "mios":
+            return queryset.filter(responsable=request.user)
+        if self.value() == "otros":
+            return queryset.filter(responsable__isnull=False).exclude(
+                responsable=request.user
+            )
+        return queryset
 
 
 @admin.action(description="Marcar como listo para retirar")
@@ -138,12 +177,15 @@ class PedidoAdmin(ModelAdmin):
         "origen",
         "estado",
         "estado_pago",
+        "responsable",
+        "asignado_en",
         "total",
     )
 
     list_display_links = ("numero_pedido",)
 
     list_filter = (
+        AsignacionPedidoFilter,
         "estado",
         "estado_pago",
         "origen",
@@ -157,9 +199,11 @@ class PedidoAdmin(ModelAdmin):
     )
 
     list_per_page = 10
-    readonly_fields = ("estado", "estado_pago")
+    list_select_related = ("responsable",)
+    readonly_fields = ("estado", "estado_pago", "responsable", "asignado_en")
 
     actions = (
+        accion_tomar_pedido,
         accion_marcar_como_listo,
         accion_completar_pedido,
         accion_anular_pedido,
@@ -250,7 +294,8 @@ class EncargadoWhatsAppForm(forms.ModelForm):
 @admin.register(EncargadoWhatsApp)
 class EncargadoWhatsAppAdmin(ModelAdmin):
     form = EncargadoWhatsAppForm
-    list_display = ("nombre", "telefono", "autorizado")
+    list_display = ("nombre", "telefono", "autorizado", "usuario")
+    list_select_related = ("usuario",)
     list_filter = ("autorizado",)
     search_fields = ("nombre", "telefono")
 
