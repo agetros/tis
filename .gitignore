@@ -221,5 +221,7 @@ Temporary Items
 
 # End of https://www.toptal.com/developers/gitignore/api/git,macos,django
 
-.github
+!/.github/
+/.github/*
+!/.github/copilot-instructions.md
 .vscode
