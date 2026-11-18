@@ -96,32 +96,6 @@ class AutoservicioTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_checkout_persists_explicit_whatsapp_consent(self):
-        response = self.client.post(
-            reverse("crear_pedido"),
-            {
-                "items": json.dumps([{"product_id": self.product.pk, "quantity": 1}]),
-                "medio_pago_id": self.payment_method.pk,
-                "telefono_cliente": "+56 9 1234 5678",
-                "acepta_notificaciones_whatsapp": "on",
-            },
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(Pedido.objects.get().acepta_notificaciones_whatsapp)
-
-    def test_checkout_rejects_consent_without_valid_phone(self):
-        response = self.client.post(
-            reverse("crear_pedido"),
-            {
-                "items": json.dumps([{"product_id": self.product.pk, "quantity": 1}]),
-                "medio_pago_id": self.payment_method.pk,
-                "telefono_cliente": "123",
-                "acepta_notificaciones_whatsapp": "on",
-            },
-        )
-        self.assertEqual(response.status_code, 400)
-        self.assertFalse(Pedido.objects.exists())
-
     def test_checkout_renderiza_los_campos_del_formulario(self):
         tarjeta = MedioPago.objects.create(tipo="TC", nombre="Tarjeta")
         response = self.client.get(reverse("index"))
@@ -129,7 +103,7 @@ class AutoservicioTests(TestCase):
         self.assertContains(response, 'name="items"')
         self.assertContains(response, 'id="customer-name"')
         self.assertContains(response, 'id="customer-phone"')
-        self.assertContains(response, 'name="acepta_notificaciones_whatsapp"')
+        self.assertNotContains(response, "WhatsApp")
         self.assertContains(response, 'name="medio_pago_id"')
         self.assertContains(response, f'value="{self.payment_method.pk}"')
         self.assertContains(response, "Tarjeta")
@@ -159,39 +133,37 @@ class AutoservicioTests(TestCase):
         self.payment_method.delete()
         response = self.client.get(reverse("index"))
         self.assertContains(response, "No hay medios de pago disponibles en este momento.")
-        self.assertContains(response, 'type="submit" disabled')
 
-    def test_formulario_limpia_items_y_rechaza_consentimiento_alterado(self):
+        class SubmitButtons(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.buttons = []
+
+            def handle_starttag(self, tag, attrs):
+                if tag == "button":
+                    self.buttons.append(dict(attrs))
+
+        parser = SubmitButtons()
+        parser.feed(response.content.decode())
+        self.assertTrue(any("disabled" in button for button in parser.buttons))
+
+    def test_formulario_limpia_items_y_conserva_el_nombre_ingresado(self):
         data = {
             "items": json.dumps([{"product_id": self.product.pk, "quantity": 1}]),
             "medio_pago_id": str(self.payment_method.pk),
             "cliente": "  Alex  ",
             "telefono_cliente": "+56 9 1234 5678",
-            "acepta_notificaciones_whatsapp": "on",
         }
         form = CheckoutForm(data)
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data["items"][0]["product_id"], self.product.pk)
         self.assertEqual(form.cleaned_data["medio_pago_id"], self.payment_method.pk)
-        self.assertTrue(form.cleaned_data["acepta_notificaciones_whatsapp"])
         self.assertEqual(form.cleaned_data["cliente"], "  Alex  ")
-        for value in ("false", "true", "1", ""):
-            with self.subTest(value=value):
-                form = CheckoutForm({**data, "acepta_notificaciones_whatsapp": value})
-                self.assertFalse(form.is_valid())
-                self.assertEqual(
-                    form.errors["acepta_notificaciones_whatsapp"][0],
-                    "La autorización de WhatsApp no es válida.",
-                )
 
     def test_checkout_conserva_errores_y_prioridad_de_validacion(self):
         items = json.dumps([{"product_id": self.product.pk, "quantity": 1}])
         casos = [
             ({}, "El detalle del pedido no tiene un formato válido."),
-            ({"items": "{", "acepta_notificaciones_whatsapp": "false"},
-             "El detalle del pedido no tiene un formato válido."),
-            ({"items": items, "acepta_notificaciones_whatsapp": "false"},
-             "La autorización de WhatsApp no es válida."),
             ({"items": items}, "Selecciona un medio de pago disponible."),
             ({"items": items, "medio_pago_id": "no-numero"},
              "Selecciona un medio de pago disponible."),
@@ -203,9 +175,6 @@ class AutoservicioTests(TestCase):
              "El nombre no puede superar los 100 caracteres."),
             ({"items": items, "medio_pago_id": self.payment_method.pk,
               "telefono_cliente": " " * 21}, "El teléfono es demasiado largo."),
-            ({"items": items, "medio_pago_id": self.payment_method.pk,
-              "acepta_notificaciones_whatsapp": "on"},
-             "Ingresa un teléfono para recibir notificaciones."),
         ]
         for datos, mensaje in casos:
             with self.subTest(datos=datos):

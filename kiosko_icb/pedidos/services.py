@@ -2,7 +2,6 @@ import logging
 import sqlite3
 from decimal import ROUND_HALF_UP, Decimal
 
-from django.conf import settings
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db import OperationalError, connection, transaction
@@ -13,7 +12,6 @@ from django.utils import timezone
 from finanzas.models import MedioPago, MovimientoFinanciero
 from productos.models import Producto
 
-from . import notificaciones
 from .models import DetallePedido, Pedido
 
 logger = logging.getLogger(__name__)
@@ -25,17 +23,7 @@ def _generar_numero_pedido(pedido):
     return pedido
 
 
-def _registrar_evento(pedido, notificar):
-    pedido.version_notificacion += 1
-    pedido.save(update_fields=["version_notificacion"])
-    notificar(pedido)
-
-
-def _validar_datos_cliente(
-    cliente,
-    telefono_cliente,
-    acepta_notificaciones_whatsapp,
-):
+def _validar_datos_cliente(cliente, telefono_cliente):
     if not isinstance(cliente, str):
         raise ValidationError("El nombre ingresado no es válido.")
 
@@ -47,17 +35,6 @@ def _validar_datos_cliente(
 
     if len(telefono_cliente) > 20:
         raise ValidationError("El teléfono es demasiado largo.")
-
-    if type(acepta_notificaciones_whatsapp) is not bool:
-        raise ValidationError("La autorización de WhatsApp no es válida.")
-
-    if acepta_notificaciones_whatsapp and not telefono_cliente.strip():
-        raise ValidationError("Ingresa un teléfono para recibir notificaciones.")
-    if acepta_notificaciones_whatsapp:
-        try:
-            notificaciones.normalizar_telefono(telefono_cliente)
-        except ValueError as error:
-            raise ValidationError(str(error)) from error
 
 
 def _crear_detalles_pedido(pedido, items):
@@ -140,14 +117,9 @@ def crear_pedido_autoservicio(
     medio_pago_id,
     cliente="",
     telefono_cliente="",
-    acepta_notificaciones_whatsapp=False,
 ):
 
-    _validar_datos_cliente(
-        cliente,
-        telefono_cliente,
-        acepta_notificaciones_whatsapp,
-    )
+    _validar_datos_cliente(cliente, telefono_cliente)
 
     if type(medio_pago_id) is not int or medio_pago_id < 1:
         raise ValidationError("Selecciona un medio de pago disponible.")
@@ -162,7 +134,6 @@ def crear_pedido_autoservicio(
     pedido = Pedido.objects.create(
         cliente=cliente.strip(),
         telefono_cliente=telefono_cliente.strip(),
-        acepta_notificaciones_whatsapp=(acepta_notificaciones_whatsapp),
         origen="K",
         estado="P",
         estado_pago="P",
@@ -178,9 +149,6 @@ def crear_pedido_autoservicio(
 
     pedido.save(update_fields=["total", "actualizado_en"])
 
-    # Evento 1: nuevo pedido.
-    _registrar_evento(pedido, notificaciones.notificar_pedido_nuevo)
-
     return pedido
 
 
@@ -191,14 +159,9 @@ def crear_pedido_encargado(
     usuario,
     cliente="",
     telefono_cliente="",
-    acepta_notificaciones_whatsapp=False,
 ):
 
-    _validar_datos_cliente(
-        cliente,
-        telefono_cliente,
-        acepta_notificaciones_whatsapp,
-    )
+    _validar_datos_cliente(cliente, telefono_cliente)
 
     if type(medio_pago_id) is not int or medio_pago_id < 1:
         raise ValidationError("Selecciona un medio de pago disponible.")
@@ -211,7 +174,6 @@ def crear_pedido_encargado(
     pedido = Pedido.objects.create(
         cliente=cliente.strip(),
         telefono_cliente=telefono_cliente.strip(),
-        acepta_notificaciones_whatsapp=(acepta_notificaciones_whatsapp),
         origen="A",
         estado="P",
         estado_pago="P",
@@ -227,9 +189,6 @@ def crear_pedido_encargado(
     )
 
     pedido.save(update_fields=["total", "actualizado_en"])
-
-    # Evento 1: nuevo pedido.
-    _registrar_evento(pedido, notificaciones.notificar_pedido_nuevo)
 
     return pedido
 
@@ -256,7 +215,6 @@ def tomar_pedido(pedido_id, usuario):
                 asignado_en=ahora,
                 estado="E",
                 actualizado_en=ahora,
-                version_notificacion=F("version_notificacion") + 1,
             )
             if actualizados == 0:
                 if not Pedido.objects.filter(pk=pedido_id).exists():
@@ -265,7 +223,6 @@ def tomar_pedido(pedido_id, usuario):
                     "Otro encargado ya tomó el pedido o dejó de estar disponible."
                 )
             pedido = Pedido.objects.select_related("responsable").get(pk=pedido_id)
-            notificaciones.notificar_pedido_tomado(pedido)
         return pedido
     except OperationalError as error:
         codigo = getattr(error.__cause__, "sqlite_errorcode", None)
@@ -359,9 +316,6 @@ def marcar_como_pagado(pedido_id, medio_pago_id):
         ]
     )
 
-    # Evento 2: pago confirmado.
-    _registrar_evento(pedido, notificaciones.notificar_pago_confirmado)
-
     return pedido
 
 
@@ -379,9 +333,6 @@ def marcar_como_listo(pedido_id):
     pedido.estado = "L"
 
     pedido.save(update_fields=["estado", "actualizado_en"])
-
-    # Evento 3: pedido listo.
-    _registrar_evento(pedido, notificaciones.notificar_pedido_listo)
 
     return pedido
 
@@ -458,8 +409,5 @@ def anular_pedido(
             "actualizado_en",
         ]
     )
-
-    # Evento 4: pedido anulado.
-    _registrar_evento(pedido, notificaciones.notificar_pedido_anulado)
 
     return pedido

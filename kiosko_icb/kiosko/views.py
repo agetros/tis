@@ -89,7 +89,6 @@ def crear_pedido(request):
             medio_pago_id=form.cleaned_data["medio_pago_id"],
             cliente=form.cleaned_data["cliente"],
             telefono_cliente=form.cleaned_data["telefono_cliente"],
-            acepta_notificaciones_whatsapp=form.cleaned_data["acepta_notificaciones_whatsapp"],
         )
     except ValidationError as error:
         return JsonResponse({"error": error.messages[0]}, status=400)

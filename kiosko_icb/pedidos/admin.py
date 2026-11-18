@@ -1,18 +1,9 @@
-from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.template.response import TemplateResponse
-from django.utils import timezone
 from unfold.admin import ModelAdmin
 
-from .models import (
-    DetallePedido,
-    EncargadoWhatsApp,
-    IntentoNotificacion,
-    NotificacionSalida,
-    NotificacionWhatsApp,
-    Pedido,
-)
+from .models import DetallePedido, Pedido
 from .services import (
     anular_pedido,
     completar_pedido,
@@ -20,7 +11,6 @@ from .services import (
     marcar_como_pagado,
     tomar_pedido,
 )
-from .notificaciones import normalizar_telefono
 
 
 @admin.action(permissions=["view"], description="Tomar pedidos disponibles")
@@ -232,127 +222,3 @@ class DetallePedidoAdmin(ModelAdmin):
     )
 
     list_per_page = 10
-
-
-@admin.register(NotificacionWhatsApp)
-class NotificacionWhatsAppAdmin(ModelAdmin):
-
-    list_display = (
-        "pedido",
-        "evento",
-        "telefono",
-        "estado",
-        "creado_en",
-    )
-
-    list_filter = (
-        "evento",
-        "estado",
-        "creado_en",
-    )
-
-    search_fields = (
-        "pedido__numero_pedido",
-        "telefono",
-        "identificador_whatsapp",
-    )
-
-    list_per_page = 20
-
-    readonly_fields = (
-        "pedido",
-        "evento",
-        "telefono",
-        "estado",
-        "identificador_whatsapp",
-        "error",
-        "creado_en",
-    )
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-
-class EncargadoWhatsAppForm(forms.ModelForm):
-    class Meta:
-        model = EncargadoWhatsApp
-        fields = "__all__"
-
-    def clean_telefono(self):
-        try:
-            return normalizar_telefono(self.cleaned_data["telefono"])
-        except ValueError as error:
-            raise forms.ValidationError(str(error)) from error
-
-
-@admin.register(EncargadoWhatsApp)
-class EncargadoWhatsAppAdmin(ModelAdmin):
-    form = EncargadoWhatsAppForm
-    list_display = ("nombre", "telefono", "autorizado", "usuario")
-    list_select_related = ("usuario",)
-    list_filter = ("autorizado",)
-    search_fields = ("nombre", "telefono")
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-
-@admin.register(NotificacionSalida)
-class NotificacionSalidaAdmin(ModelAdmin):
-    list_display = (
-        "pedido", "evento", "tipo_destinatario", "telefono", "estado",
-        "estado_proveedor", "creado_en", "ultimo_intento", "intentos",
-    )
-    list_filter = ("estado", "estado_proveedor", "evento", "tipo_destinatario", "creado_en")
-    search_fields = ("pedido__numero_pedido", "telefono", "identificador_proveedor")
-    readonly_fields = tuple(field.name for field in NotificacionSalida._meta.fields)
-    list_per_page = 20
-    actions = ("reintentar_rechazadas",)
-
-    @admin.action(permissions=["reintentar"], description="Reintentar fallos sin SID")
-    def reintentar_rechazadas(self, request, queryset):
-        actualizadas = queryset.filter(
-            estado=NotificacionSalida.Procesamiento.FALLIDO,
-            identificador_proveedor__isnull=True,
-        ).update(
-            estado=NotificacionSalida.Procesamiento.PENDIENTE,
-            proximo_intento=None,
-            actualizado_en=timezone.now(),
-        )
-        self.message_user(
-            request, f"{actualizadas} notificación(es) puestas en cola.", level=messages.SUCCESS
-        )
-
-    def has_reintentar_permission(self, request):
-        return request.user.has_perm("pedidos.change_notificacionsalida")
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-
-@admin.register(IntentoNotificacion)
-class IntentoNotificacionAdmin(ModelAdmin):
-    list_display = ("notificacion", "numero", "iniciado_en", "finalizado_en", "resultado")
-    list_filter = ("resultado", "iniciado_en")
-    readonly_fields = tuple(field.name for field in IntentoNotificacion._meta.fields)
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False

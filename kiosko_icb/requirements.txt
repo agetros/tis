@@ -3,5 +3,4 @@ django-unfold==0.110.1
 python-dotenv==1.2.4
 Pillow==13.0.0
 requests>=2.34,<3
-twilio>=9,<10
 psycopg[binary]>=3.1.8,<4

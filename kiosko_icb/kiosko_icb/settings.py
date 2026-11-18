@@ -169,26 +169,6 @@ MAILERS = {
     },
 }
 
-TWILIO_ENABLED = os.getenv("TWILIO_ENABLED", "false").lower() in ("1", "true", "yes")
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
-TWILIO_API_KEY_SID = os.getenv("TWILIO_API_KEY_SID", "")
-TWILIO_API_KEY_SECRET = os.getenv("TWILIO_API_KEY_SECRET", "")
-TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "")
-TWILIO_MESSAGING_SERVICE_SID = os.getenv("TWILIO_MESSAGING_SERVICE_SID", "")
-TWILIO_STATUS_CALLBACK_ENABLED = os.getenv(
-    "TWILIO_STATUS_CALLBACK_ENABLED", "false"
-).lower() in ("1", "true", "yes")
-TWILIO_STATUS_CALLBACK_URL = os.getenv("TWILIO_STATUS_CALLBACK_URL", "")
-TWILIO_CONTENT_TEMPLATES = {
-    "nuevo_encargado": os.getenv("TWILIO_CONTENT_TEMPLATE_NUEVO_ENCARGADO", ""),
-    "tomado_encargado": os.getenv("TWILIO_CONTENT_TEMPLATE_TOMADO_ENCARGADO", ""),
-    "pago_encargado": os.getenv("TWILIO_CONTENT_TEMPLATE_PAGO_ENCARGADO", ""),
-    "listo_cliente": os.getenv("TWILIO_CONTENT_TEMPLATE_LISTO_CLIENTE", ""),
-    "anulado_encargado": os.getenv("TWILIO_CONTENT_TEMPLATE_ANULADO_ENCARGADO", ""),
-    "anulado_cliente": os.getenv("TWILIO_CONTENT_TEMPLATE_ANULADO_CLIENTE", ""),
-}
-
 UNFOLD = {
     "SITE_TITLE": "Kiosko ICB",
     "SITE_HEADER": "Kiosko ICB",

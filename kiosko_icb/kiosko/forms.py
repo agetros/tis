@@ -6,10 +6,6 @@ from django import forms
 
 class CheckoutForm(forms.Form):
     items = forms.CharField(required=False, strip=False, widget=forms.HiddenInput)
-    acepta_notificaciones_whatsapp = forms.BooleanField(
-        required=False,
-        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
-    )
     cliente = forms.CharField(
         required=False,
         strip=False,
@@ -53,12 +49,6 @@ class CheckoutForm(forms.Form):
             raise forms.ValidationError(
                 "El detalle del pedido no tiene un formato válido."
             ) from error
-
-    def clean_acepta_notificaciones_whatsapp(self):
-        consentimiento = self.data.get("acepta_notificaciones_whatsapp")
-        if consentimiento not in (None, "on"):
-            raise forms.ValidationError("La autorización de WhatsApp no es válida.")
-        return consentimiento == "on"
 
     def clean_medio_pago_id(self):
         try:
